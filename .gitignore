@@ -1,32 +1,63 @@
-PS C:\Users\wizar\Desktop\OCRAPP> notepad .gitignore
->> 
-PS C:\Users\wizar\Desktop\OCRAPP> # Python
->> __pycache__/
->> *.py[cod]
->> .venv/
->> env/
->> venv/
->> *.egg-info/
->>
->> # VS Code
->> .vscode/
->>
->> # OS files
->> .DS_Store
->> Thumbs.db
->>
->> # Data / logs
->> *.log
->> *.db
->> analytics.db
->>
-__pycache__/ : The term '__pycache__/' is not recognized as the name of a cmdlet, function, script file, or operable 
-program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.    
-At line:2 char:1
-+ __pycache__/
-+ ~~~~~~~~~~~~
-    + CategoryInfo          : ObjectNotFound: (__pycache__/:String) [], CommandNotFoundException
-    + FullyQualifiedErrorId : CommandNotFoundException
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Virtual environments
+venv/
+env/
+.env/
+.venv/
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Local development files
+*.log
+.DS_Store
+Thumbs.db
+*.db
+analytics.db
+
+# OCR specific
+tesseract_config/
+cache/
+output/
+debug/
+
+# Document processing
+temp/
+processed/
+*.pdf
+*.docx
+*.xlsx
+
+# Credentials and sensitive data
+credentials.json
+config.ini
+.env
+
+# Model files and large binaries
+*.model
+*.weights
+*.h5
+*.pkl
 
 *.py[cod] : The term '*.py[cod]' is not recognized as the name of a cmdlet, function, script file, or operable 
 program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.    

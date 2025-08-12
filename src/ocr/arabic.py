@@ -95,7 +95,7 @@ class ArabicOCR(BaseOCREngine):
             return 0.0
         return np.mean([r.confidence for r in self.last_results])
         
-    def process(self, image):
+    def process(self, image) -> List[OCRResult]:
         """Process image and extract Arabic text"""
         # Configure Tesseract for Arabic
         config = r'--oem 3 --psm 3 -l ara'
@@ -108,7 +108,7 @@ class ArabicOCR(BaseOCREngine):
         )
         
         # Process results
-        texts = []
+        ocr_results: List[OCRResult] = []
         confidences = []
         
         for i in range(len(result["text"])):
@@ -121,23 +121,26 @@ class ArabicOCR(BaseOCREngine):
                     reshaped_text = arabic_reshaper.reshape(text)
                     bidi_text = get_display(reshaped_text)
                     
-                    texts.append({
-                        'text': bidi_text,
-                        'confidence': conf,
-                        'bbox': (
+                    ocr_result = OCRResult(
+                        text=bidi_text,
+                        confidence=conf,
+                        bounding_box=(
                             result["left"][i],
                             result["top"][i],
                             result["width"][i],
                             result["height"][i]
-                        )
-                    })
+                        ),
+                        language='ara',
+                        page_number=result.get('page_num', [1])[i]
+                    )
+                    ocr_results.append(ocr_result)
                     confidences.append(conf)
         
         # Update confidence score
         self.confidence = np.mean(confidences) if confidences else 0.0
-        self.last_result = texts
+        self.last_results = ocr_results
         
-        return texts
+        return ocr_results
     
     def get_confidence(self):
         """Return confidence score of last OCR operation"""

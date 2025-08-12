@@ -14,6 +14,16 @@ class OCRResult:
     bounding_box: Tuple[int, int, int, int]  # x, y, width, height
     language: str
     page_number: int = 1
+    
+    def to_dict(self) -> Dict:
+        """Convert OCR result to dictionary format for serialization"""
+        return {
+            'text': self.text,
+            'confidence': self.confidence,
+            'bounding_box': self.bounding_box,
+            'language': self.language,
+            'page_number': self.page_number
+        }
 
 class BaseOCREngine(ABC):
     """Base class for OCR engines with Morocco-specific optimizations"""
