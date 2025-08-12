@@ -7,6 +7,8 @@ import cv2
 import numpy as np
 from datetime import datetime
 
+from src.ocr.base import OCRResult
+
 class DocumentCache:
     """Cache system for processed documents"""
     
@@ -54,12 +56,18 @@ class DocumentCache:
     
     def cache_results(self, 
                      image: np.ndarray,
-                     results: Dict,
+                     results: Dict[str, List[OCRResult]],
                      template_type: str,
                      confidence: float,
                      processing_time: float):
         """Cache processing results for a document"""
         doc_hash = self.get_document_hash(image)
+        
+        # Convert OCRResults to dictionaries for serialization
+        serializable_results = {
+            lang: [result.to_dict() for result in lang_results]
+            for lang, lang_results in results.items()
+        }
         
         with sqlite3.connect(str(self.db_path)) as conn:
             cursor = conn.cursor()
@@ -72,7 +80,7 @@ class DocumentCache:
                 template_type,
                 datetime.now().isoformat(),
                 confidence,
-                json.dumps(results),
+                json.dumps(serializable_results),
                 processing_time
             ))
             conn.commit()

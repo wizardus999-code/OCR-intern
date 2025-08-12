@@ -84,9 +84,9 @@ class OCRWorker(QThread):
         
     def _perform_engine_comparison(self, image):
         """Compare results from different OCR engines"""
-        # Get results from both Arabic and French OCR
-        arabic_results = self.arabic_ocr.process(image)
-        french_results = self.french_ocr.process(image)
+        # Get results from both Arabic and French OCR using process_document
+        arabic_results = self.arabic_ocr.process_document(image)
+        french_results = self.french_ocr.process_document(image)
         
         # Combine and validate results
         combined_results = {
