@@ -1,0 +1,117 @@
+PS C:\Users\wizar\Desktop\OCRAPP> notepad .gitignore
+>> 
+PS C:\Users\wizar\Desktop\OCRAPP> # Python
+>> __pycache__/
+>> *.py[cod]
+>> .venv/
+>> env/
+>> venv/
+>> *.egg-info/
+>>
+>> # VS Code
+>> .vscode/
+>>
+>> # OS files
+>> .DS_Store
+>> Thumbs.db
+>>
+>> # Data / logs
+>> *.log
+>> *.db
+>> analytics.db
+>>
+__pycache__/ : The term '__pycache__/' is not recognized as the name of a cmdlet, function, script file, or operable 
+program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.    
+At line:2 char:1
++ __pycache__/
++ ~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (__pycache__/:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+*.py[cod] : The term '*.py[cod]' is not recognized as the name of a cmdlet, function, script file, or operable 
+program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.    
+At line:3 char:1
++ *.py[cod]
++ ~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (*.py[cod]:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+.venv/ : The term '.venv/' is not recognized as the name of a cmdlet, function, script file, or operable program. 
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:4 char:1
++ .venv/
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (.venv/:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+env/ : The term 'env/' is not recognized as the name of a cmdlet, function, script file, or operable program. Check 
+the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:5 char:1
++ env/
++ ~~~~
+    + CategoryInfo          : ObjectNotFound: (env/:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+venv/ : The term 'venv/' is not recognized as the name of a cmdlet, function, script file, or operable program. 
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:6 char:1
++ venv/
++ ~~~~~
+    + CategoryInfo          : ObjectNotFound: (venv/:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+*.egg-info/ : The term '*.egg-info/' is not recognized as the name of a cmdlet, function, script file, or operable 
+program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.    
+At line:7 char:1
++ *.egg-info/
++ ~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (*.egg-info/:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+.vscode/ : The term '.vscode/' is not recognized as the name of a cmdlet, function, script file, or operable 
+program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.    
+At line:10 char:1
++ .vscode/
++ ~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (.vscode/:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+.DS_Store : The term '.DS_Store' is not recognized as the name of a cmdlet, function, script file, or operable 
+program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.    
+At line:13 char:1
++ .DS_Store
++ ~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (.DS_Store:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+Thumbs.db : The term 'Thumbs.db' is not recognized as the name of a cmdlet, function, script file, or operable 
+program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.    
+At line:14 char:1
++ Thumbs.db
++ ~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Thumbs.db:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+*.log : The term '*.log' is not recognized as the name of a cmdlet, function, script file, or operable program. 
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:17 char:1
++ *.log
++ ~~~~~
+    + CategoryInfo          : ObjectNotFound: (*.log:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+*.db : The term '*.db' is not recognized as the name of a cmdlet, function, script file, or operable program. Check 
+the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:18 char:1
++ *.db
++ ~~~~
+    + CategoryInfo          : ObjectNotFound: (*.db:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+analytics.db : The term 'analytics.db' is not recognized as the name of a cmdlet, function, script file, or operable 
+program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.    
+At line:19 char:1
++ analytics.db
++ ~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (analytics.db:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
