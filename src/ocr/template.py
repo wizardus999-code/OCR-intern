@@ -5,15 +5,24 @@ import numpy as np
 import cv2
 from dataclasses import dataclass
 
+from src.postprocessing.validators import normalize_field
+
 @dataclass
 class TemplateRegion:
-    """Represents a region in a document template"""
+    """Represents a region in a document template with OCR configuration"""
     x: float
     y: float
     w: float
     h: float
     name: str
     section: str
+    lang: Optional[str] = None
+    psm: Optional[int] = None
+    oem: Optional[int] = None
+    dpi: Optional[int] = None
+    scale: Optional[float] = None
+    whitelist: Optional[str] = None
+    preserve_spaces: Optional[bool] = None
 
 @dataclass
 class Template:
@@ -48,7 +57,14 @@ class TemplateExtractor:
                             w=region_coords['w'],
                             h=region_coords['h'],
                             name=region_name,
-                            section=section
+                            section=section,
+                            lang=region_coords.get('lang'),
+                            psm=region_coords.get('psm'),
+                            oem=region_coords.get('oem'),
+                            dpi=region_coords.get('dpi'),
+                            scale=region_coords.get('scale'),
+                            whitelist=region_coords.get('whitelist'),
+                            preserve_spaces=region_coords.get('preserve_spaces')
                         ))
                 
                 self.templates[template_id] = Template(
@@ -83,9 +99,76 @@ class TemplateExtractor:
             # Extract region from image
             roi = image[y1:y2, x1:x2]
             if roi.size > 0:
-                regions[f"{region.section}.{region.name}"] = roi
+                regions[f"{region.section}.{region.name}"] = {
+                    'image': roi,
+                    'bbox': [x1, y1, x2-x1, y2-y1],
+                    'lang': region.lang
+                }
                 
         return regions
+        
+    def process_regions(self,
+                       image: np.ndarray,
+                       template_id: str,
+                       ocr_engine) -> Dict[str, Any]:
+        """Process regions using OCR and validation"""
+        regions = self.extract_regions(image, template_id)
+        out = {'fields': {}, 'raw': {}}
+        
+        for field_id, region_info in regions.items():
+            section, name = field_id.split('.')
+            roi = region_info['image']
+            lang = region_info['lang']
+            bbox = region_info['bbox']
+            
+            # Build OCR configuration
+            config = {}
+            region = next(r for r in self.templates[template_id].regions 
+                        if r.section == section and r.name == name)
+            
+            if region.psm is not None:
+                config['psm'] = region.psm
+            if region.oem is not None:
+                config['oem'] = region.oem
+            if region.dpi is not None:
+                config['dpi'] = region.dpi
+            if region.whitelist is not None:
+                config['whitelist'] = region.whitelist
+            if region.preserve_spaces is not None:
+                config['preserve_interword_spaces'] = region.preserve_spaces
+            if region.scale is not None and region.scale != 1.0:
+                h, w = roi.shape[:2]
+                new_h, new_w = int(h * region.scale), int(w * region.scale)
+                roi = cv2.resize(roi, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
+
+            # Process with appropriate language and config
+            results = ocr_engine.process_document(roi, **config)
+            
+            # Find best result by confidence
+            best_text = ""
+            best_conf = -1
+            lang_key = 'ara' if region.lang == 'arabic' else 'fra'
+            
+            if lang_key in results:
+                for result in results[lang_key]:
+                    if result.confidence > best_conf:
+                        best_text = result.text
+                        best_conf = result.confidence
+            
+            # Apply normalization and validation
+            norm = normalize_field(f"{section}.{name}", best_text)
+            out['fields'][f"{section}.{name}"] = {
+                'value': best_text,
+                'norm': norm.get('value'),
+                'valid': bool(norm.get('valid')),
+                'type': norm.get('type'),
+                'conf': best_conf,
+                'lang': lang_key,
+                'bbox': bbox,
+            }
+            out['raw'].setdefault(lang_key, []).extend(results.get(lang_key, []))
+            
+        return out
         
     def get_template_info(self, template_id: str) -> Optional[Dict[str, Any]]:
         """Get information about a specific template"""
