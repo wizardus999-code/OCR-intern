@@ -1,0 +1,33 @@
+# Core OCR and Image Processing
+pytesseract==0.3.10
+opencv-python==4.8.0.74
+numpy==1.24.3
+Pillow==10.0.0
+
+# Arabic Text Processing
+arabic-reshaper==3.0.0
+python-bidi==0.4.2
+langdetect==1.0.9
+
+# GUI
+PyQt6==6.5.2
+
+# Document Processing
+pdf2image==1.16.3
+python-docx==0.8.11
+openpyxl==3.1.2
+
+# Data Analysis and Visualization
+pandas==2.0.3
+matplotlib==3.7.2
+seaborn==0.12.2
+
+# Testing
+pytest==7.4.0
+pytest-benchmark==4.0.0
+pytest-cov==4.1.0
+
+# Development Tools
+black==23.7.0
+mypy==1.4.1
+pylint==2.17.5
