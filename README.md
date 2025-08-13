@@ -51,6 +51,9 @@ source .venv/bin/activate
 
 pip install -U pip
 pip install -r requirements.txt
+
+# Download required Tesseract language data
+pwsh scripts/fetch_tessdata.ps1
 🚀 Usage
 1) CLI (batch)
 # Detect document type, run OCR, and export to multiple formats
