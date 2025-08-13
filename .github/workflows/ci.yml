@@ -39,9 +39,10 @@ jobs:
         shell: powershell
 
       - name: Fetch tessdata (fra/ara)
-        run: pwsh -File scripts/fetch_tessdata.ps1
+        run: .\scripts\fetch_tessdata.ps1
         shell: powershell
 
       - name: Run tests
         run: python -m pytest -q
         shell: powershell
+
