@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict, Tuple
+﻿from typing import List, Optional, Dict, Tuple
 import numpy as np
 import cv2
 from concurrent.futures import ThreadPoolExecutor
@@ -14,10 +14,12 @@ class HybridOCR:
     Combines Arabic and French OCR engines with smart language detection
     """
     
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, arabic_engine: Optional[ArabicOCR] = None, 
+                 french_engine: Optional[FrenchOCR] = None, 
+                 config_path: Optional[str] = None):
         self.logger = logging.getLogger(__name__)
-        self.arabic_engine = ArabicOCR(config_path)
-        self.french_engine = FrenchOCR(config_path)
+        self.arabic_engine = arabic_engine or ArabicOCR(config_path)
+        self.french_engine = french_engine or FrenchOCR(config_path)
         
     def analyze_layout(self, image: np.ndarray) -> Dict[str, List[Tuple[int, int, int, int]]]:
         """
@@ -52,44 +54,22 @@ class HybridOCR:
     def process_document(self, image: np.ndarray) -> Dict[str, List[OCRResult]]:
         """
         Process document using both OCR engines intelligently
+        Returns results from both engines, even if empty
         """
         try:
-            # Analyze layout first
-            regions = self.analyze_layout(image)
-            results = {'arabic': [], 'french': []}
+            # Process with both engines unconditionally
+            arabic = self.arabic_engine.process_document(image) or []
+            french = self.french_engine.process_document(image) or []
             
-            # Process regions in parallel
-            with ThreadPoolExecutor(max_workers=2) as executor:
-                # Submit Arabic processing
-                if regions['arabic']:
-                    arabic_future = executor.submit(
-                        self._process_regions,
-                        image,
-                        regions['arabic'],
-                        self.arabic_engine
-                    )
-                    
-                # Submit French processing
-                if regions['french']:
-                    french_future = executor.submit(
-                        self._process_regions,
-                        image,
-                        regions['french'],
-                        self.french_engine
-                    )
-                    
-                # Collect results
-                if regions['arabic']:
-                    results['arabic'] = arabic_future.result()
-                if regions['french']:
-                    results['french'] = french_future.result()
-                    
+            results = {"arabic": arabic, "french": french}
+            
             # Log processing summary
             self._log_processing_summary(results)
             return results
             
-        except Exception as e:
-            self.logger.error(f"Hybrid OCR processing failed: {str(e)}")
+        except Exception:
+            # include traceback automatically
+            self.logger.exception("Hybrid OCR processing failed")
             raise
             
     def _process_regions(self, 
@@ -131,3 +111,4 @@ class HybridOCR:
             f"Arabic text regions: {len(results['arabic'])} (avg conf: {arabic_conf:.2f}%)\n"
             f"French text regions: {len(results['french'])} (avg conf: {french_conf:.2f}%)"
         )
+
