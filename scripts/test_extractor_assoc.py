@@ -8,6 +8,11 @@ from pytesseract import Output
 # Allow repo imports
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
+# Make tessdata resilient
+repo_tessdata = Path(__file__).resolve().parents[1] / "tessdata"
+if repo_tessdata.exists():
+    os.environ.setdefault("TESSDATA_PREFIX", str(repo_tessdata))
+
 from src.templates.template_extractor import TemplateExtractor
 
 # Ensure tessdata is found (you already set this, but just in case)

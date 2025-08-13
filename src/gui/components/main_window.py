@@ -1,7 +1,14 @@
+import os
+from pathlib import Path
+
+# Set tessdata path if local copy exists
+repo_tessdata = Path(__file__).resolve().parents[2] / "tessdata"
+if repo_tessdata.exists():
+    os.environ.setdefault("TESSDATA_PREFIX", str(repo_tessdata))
+
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, 
                             QPushButton, QLabel, QFileDialog, QProgressBar)
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from pathlib import Path
 import cv2
 import numpy as np
 

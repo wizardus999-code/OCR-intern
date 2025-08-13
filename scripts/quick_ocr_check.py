@@ -4,9 +4,10 @@ import cv2, numpy as np
 import pytesseract
 from pytesseract import Output
 
-# Make Tesseract + tessdata reliable regardless of PATH
-repo_root = Path(__file__).resolve().parents[1]
-os.environ.setdefault("TESSDATA_PREFIX", str(repo_root / "tessdata"))
+# Make Tesseract + tessdata resilient
+repo_tessdata = Path(__file__).resolve().parents[1] / "tessdata"
+if repo_tessdata.exists():
+    os.environ.setdefault("TESSDATA_PREFIX", str(repo_tessdata))
 
 if shutil.which("tesseract") is None:
     p = Path(r"C:\Program Files\Tesseract-OCR\tesseract.exe")

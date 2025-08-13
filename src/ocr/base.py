@@ -4,7 +4,11 @@ import pytesseract
 import numpy as np
 from pathlib import Path
 import logging
+import os
 from dataclasses import dataclass
+
+# Configure tessdata path
+repo_tessdata = Path(__file__).resolve().parents[2] / "tessdata"
 
 @dataclass
 class OCRResult:
@@ -85,6 +89,10 @@ class BaseOCREngine(ABC):
 
             # Configure Tesseract
             custom_config = f'--oem 3 --psm {psm}'
+            
+            # Add tessdata path to config if available
+            if repo_tessdata.exists():
+                custom_config = f'--tessdata-dir "{repo_tessdata}" {custom_config}'
             
             # Get detailed OCR data
             data = pytesseract.image_to_data(
