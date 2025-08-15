@@ -68,12 +68,12 @@ class TemplateExtractor:
             return engine.process_document(crop, config=config)
         except TypeError:
             try:
-                return engine.process(crop, config=config)
+                return engine.process_document(crop, config=config)
             except TypeError:
                 try:
                     return engine.process_document(crop)
                 except TypeError:
-                    return engine.process(crop)
+                    return engine.process_document(crop)
 
     def run(self, image: np.ndarray, template_key: str, engines: Dict[str, Any]) -> Dict[str, Any]:
         if template_key not in self.templates:
@@ -89,10 +89,14 @@ class TemplateExtractor:
                 crop = _apply_scale(crop, rel)
                 config = _build_tess_config(rel)
 
-                lang_key = rel.get('lang')
-                if not lang_key:
-                    is_ar = (section == 'title' and name == 'ar') or any('\u0600' <= ch <= '\u06FF' for ch in name)
-                    lang_key = 'arabic' if is_ar else 'french'
+                # Check if this is a receipt field
+                if name == 'receipt_no':
+                    lang_key = 'receipt'
+                else:
+                    lang_key = rel.get('lang')
+                    if not lang_key:
+                        is_ar = (section == 'title' and name == 'ar') or any('\u0600' <= ch <= '\u06FF' for ch in name)
+                        lang_key = 'arabic' if is_ar else 'french'
 
                 engine = engines.get(lang_key) or engines.get('hybrid')
                 if engine is None:
@@ -169,5 +173,6 @@ class TemplateExtractor:
             'required_fields': tpl.get('required_fields', []),
         }
         return out
+
 
 

@@ -61,7 +61,7 @@ class OCRWorker(QThread):
                 }
             
             # Preprocess image
-            processed = self.preprocessor.process(image)
+            processed = self.preprocessor.process_document(image)
             
             # Process with hybrid OCR
             start_time = time.time()
@@ -353,3 +353,4 @@ class MainWindow(QMainWindow):
                     text_output.append(f"{result.text} (conf: {result.confidence:.1f}%)")
                     
         self.text_results.setText("\n".join(text_output))
+

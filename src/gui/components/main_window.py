@@ -45,7 +45,7 @@ class OCRWorker(QThread):
     def _perform_document_analysis(self, document):
         """Analyze document for text content and layout"""
         # Preprocess the image
-        preprocessed = self.preprocessor.process(document.image)
+        preprocessed = self.preprocessor.process_document(document.image)
         
         # Detect handwriting regions
         handwriting_regions = self._perform_handwriting_detection(preprocessed)
@@ -183,3 +183,4 @@ class MainWindow(QMainWindow):
             
         # Update the results label
         self.results_label.setText("\n".join(summary))
+

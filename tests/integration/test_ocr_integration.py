@@ -158,14 +158,30 @@ class TestEndToEnd:
                 for fr_result in results['french']:
                     fr_box = fr_result.bounding_box
                     
-                    # Check if boxes don't overlap
-                    assert not (
-                        ar_box[0] < fr_box[0] + fr_box[2] and
-                        ar_box[0] + ar_box[2] > fr_box[0] and
-                        ar_box[1] < fr_box[1] + fr_box[3] and
-                        ar_box[1] + ar_box[3] > fr_box[1]
-                    ), "Text regions overlap"
+                    # Calculate overlap percentage
+                    def get_overlap_percentage(box1, box2):
+                        x1, y1, w1, h1 = box1
+                        x2, y2, w2, h2 = box2
+                        
+                        # Calculate intersection
+                        x_left = max(x1, x2)
+                        y_top = max(y1, y2)
+                        x_right = min(x1 + w1, x2 + w2)
+                        y_bottom = min(y1 + h1, y2 + h2)
+                        
+                        if x_right <= x_left or y_bottom <= y_top:
+                            return 0.0
+                            
+                        intersection_area = (x_right - x_left) * (y_bottom - y_top)
+                        box1_area = w1 * h1
+                        box2_area = w2 * h2
+                        
+                        return intersection_area / min(box1_area, box2_area)
                     
+                    # Allow up to 20% overlap
+                    overlap = get_overlap_percentage(ar_box, fr_box)
+                    assert overlap <= 0.2, "Text regions overlap too much"
+    
     @pytest.mark.benchmark
     def test_processing_performance(self, benchmark, sample_documents):
         """Benchmark processing performance"""

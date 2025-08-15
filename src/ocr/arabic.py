@@ -12,6 +12,7 @@ class ArabicOCR(BaseOCREngine):
     
     def __init__(self, config_path: Optional[str] = None):
         super().__init__(config_path)
+        self.last_result = None
         self.last_results: List[OCRResult] = []
         
         # Morocco-specific Arabic patterns
@@ -24,7 +25,7 @@ class ArabicOCR(BaseOCREngine):
     def preprocess_image(self, image: np.ndarray) -> np.ndarray:
         """
         Preprocess image for optimal Arabic text recognition
-        Specialized for Moroccan administrative documents
+        Specialized for Moroccan administrative documents with improved clarity
         """
         # Convert to grayscale if needed
         if len(image.shape) == 3:
@@ -32,23 +33,46 @@ class ArabicOCR(BaseOCREngine):
         else:
             gray = image.copy()
             
-        # Apply adaptive thresholding for better text separation
-        binary = cv2.adaptiveThreshold(
-            gray,
-            255,
-            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-            cv2.THRESH_BINARY,
-            11,  # Block size
-            2    # C constant
-        )
+        # Size normalization for consistent results
+        # Scale to common DPI (300) for OCR
+        scale_factor = 300 / 72  # Assuming 72 DPI input
+        scaled = cv2.resize(gray, None, fx=scale_factor, fy=scale_factor, 
+                          interpolation=cv2.INTER_CUBIC)
+            
+        # Apply multi-stage CLAHE for enhanced contrast
+        clahe1 = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+        clahe2 = cv2.createCLAHE(clipLimit=1.5, tileGridSize=(4,4))
+        enhanced1 = clahe1.apply(scaled)
+        enhanced2 = clahe2.apply(enhanced1)
         
-        # Remove noise while preserving Arabic text characteristics
-        denoised = cv2.fastNlMeansDenoising(binary, None, 10, 7, 21)
+        # Denoise with edge preservation
+        denoised = cv2.fastNlMeansDenoising(enhanced2, 
+                                           h=10,  # Filter strength
+                                           templateWindowSize=7, 
+                                           searchWindowSize=21)
         
-        # Enhance contrast for better character recognition
-        enhanced = cv2.equalizeHist(denoised)
+        # Local adaptive thresholding
+        binary = cv2.adaptiveThreshold(denoised, 
+                                     255,
+                                     cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                     cv2.THRESH_BINARY,
+                                     11,  # Block size
+                                     2)   # C constant
         
-        return enhanced
+        # Connect broken strokes and remove noise
+        kernel1 = np.ones((2,2), np.uint8)
+        kernel2 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3,3))
+        
+        # Close gaps in characters
+        morph = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel1)
+        
+        # Remove small noise
+        morph = cv2.morphologyEx(morph, cv2.MORPH_OPEN, kernel2)
+        
+        # Final edge enhancement
+        edge_enhanced = cv2.addWeighted(denoised, 0.7, morph, 0.3, 0)
+        
+        return edge_enhanced
         
     def postprocess_text(self, text: str) -> str:
         """
@@ -78,8 +102,8 @@ class ArabicOCR(BaseOCREngine):
         if not self.validate_language('ara'):
             raise RuntimeError("Arabic language support not installed in Tesseract")
             
-        # Process with Arabic-specific settings
-        results = self.process_image(image, lang='ara')
+        # Process with Arabic-specific settings using uniform text mode (PSM 6)
+        results = self.process_image(image, lang='ara', psm=6)
         self.last_results = results
         
         # Calculate overall confidence

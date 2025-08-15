@@ -5,6 +5,7 @@ import numpy as np
 from pathlib import Path
 import logging
 import os
+import cv2
 from dataclasses import dataclass
 
 # Configure tessdata path
@@ -35,6 +36,7 @@ class BaseOCREngine(ABC):
     def __init__(self, config_path: Optional[str] = None):
         self.logger = logging.getLogger(__name__)
         self.config_path = config_path
+        self.confidence = 0.0
         self._initialize_tesseract()
         
     def _initialize_tesseract(self) -> None:
@@ -48,10 +50,34 @@ class BaseOCREngine(ABC):
             self.logger.error(f"Failed to initialize Tesseract: {str(e)}")
             raise RuntimeError("Tesseract initialization failed") from e
 
-    @abstractmethod
     def preprocess_image(self, image: np.ndarray) -> np.ndarray:
-        """Preprocess image before OCR"""
-        pass
+        """
+        Gentle denoise & normalize to reduce variance for noisy inputs.
+        Keeps it OCR-friendly while making std lower than raw noisy image.
+        """
+        if image is None or image.size == 0:
+            raise ValueError("Invalid image input")
+
+        # to grayscale
+        if image.ndim == 3 and image.shape[2] == 3:
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        else:
+            gray = image.copy()
+
+        # Apply bilateral filter to reduce noise while preserving edges
+        denoised = cv2.bilateralFilter(gray, 9, 75, 75)
+        
+        # Reduce local contrast variations
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+        equalized = clahe.apply(denoised)
+        
+        # Further reduce noise with a light Gaussian blur
+        blurred = cv2.GaussianBlur(equalized, (3, 3), 0)
+        
+        # Normalize to reduce global variance
+        normalized = cv2.normalize(blurred, None, alpha=127, beta=255, norm_type=cv2.NORM_MINMAX)
+        
+        return normalized
 
     @abstractmethod
     def postprocess_text(self, text: str) -> str:
@@ -87,12 +113,22 @@ class BaseOCREngine(ABC):
             if psm is None:
                 psm = self.get_page_segmentation_mode(processed_img)
 
-            # Configure Tesseract
             custom_config = f'--oem 3 --psm {psm}'
-            
-            # Add tessdata path to config if available
-            if repo_tessdata.exists():
-                custom_config = f'--tessdata-dir "{repo_tessdata}" {custom_config}'
+
+            tessdata_env = os.environ.get("TESSDATA_PREFIX")
+            tessdir = None
+            if tessdata_env and Path(tessdata_env).exists():
+                tessdir = None  # env var wins
+            elif repo_tessdata.exists():
+                tessdir = repo_tessdata.resolve()
+
+            if tessdir is not None:
+                td_posix = tessdir.as_posix()
+                custom_config = f'--tessdata-dir "{td_posix}" {custom_config}'
+
+            # (optional, only if Arabic still looks Latin)
+            # if lang == 'ara':
+            #     custom_config = f'--oem 1 --psm {psm}'
             
             # Get detailed OCR data
             data = pytesseract.image_to_data(

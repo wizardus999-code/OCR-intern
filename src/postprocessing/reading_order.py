@@ -1,4 +1,4 @@
-﻿from typing import List, Dict, Any
+from typing import List, Dict, Any
 from dataclasses import is_dataclass
 
 def _normalize_item(r: Any) -> Dict[str, Any]:

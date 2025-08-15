@@ -5,6 +5,8 @@ from pathlib import Path
 from datetime import datetime
 import json
 import os
+import image_utils
+from tests.utils.text_renderer import TextRenderer
 
 from src.ocr.hybrid import HybridOCR
 from src.types.document import Document
@@ -20,6 +22,7 @@ class MoroccanDocumentGenerator:
     def __init__(self):
         self.templates_dir = TEMPLATES_DIR
         self.stamps_dir = STAMPS_DIR
+        self.text_renderer = TextRenderer()
         self._ensure_directories()
         
     def _ensure_directories(self):
@@ -33,7 +36,7 @@ class MoroccanDocumentGenerator:
     
     def _create_sample_stamp(self):
         """Create a sample official stamp image"""
-        stamp = np.ones((200, 200), dtype=np.uint8) * 255
+        stamp = np.ones((200, 200, 3), dtype=np.uint8) * 255
         cv2.circle(stamp, (100, 100), 90, (0, 0, 0), 2)
         cv2.putText(stamp, "MAROC", (60, 100),
                    cv2.FONT_HERSHEY_COMPLEX, 0.7, (0, 0, 0), 2)
@@ -41,9 +44,9 @@ class MoroccanDocumentGenerator:
     
     def create_document(self, doc_type: str, content: dict) -> str:
         """Create a test document with specified type and content"""
-        # Create base image
+        # Create base image as 3-channel
         width, height = 2480, 3508  # A4 size at 300 DPI
-        image = np.ones((height, width), dtype=np.uint8) * 255
+        image = np.ones((height, width, 3), dtype=np.uint8) * 255
         
         # Add header
         self._add_header(image, doc_type)
@@ -69,16 +72,25 @@ class MoroccanDocumentGenerator:
                    cv2.FONT_HERSHEY_COMPLEX, 4, (0, 0, 0), 2)
         
         # Add bilingual headers
-        headers = {
-            "fr": "ROYAUME DU MAROC",
-            "ar": "المملكة المغربية"
-        }
+        # French header
+        image = self.text_renderer.draw_text(
+            image,
+            (940, 300), 
+            "ROYAUME DU MAROC",
+            font_size=64,
+            arabic=False,
+            color=(0, 0, 0)
+        )
         
-        y_pos = 300
-        for lang, text in headers.items():
-            cv2.putText(image, text, (940, y_pos),
-                       cv2.FONT_HERSHEY_COMPLEX, 2, (0, 0, 0), 3)
-            y_pos += 100
+        # Arabic header
+        image = self.text_renderer.draw_text(
+            image,
+            (940, 400),
+            "المملكة المغربية",
+            font_size=64,
+            arabic=True,
+            color=(0, 0, 0)
+        )
     
     def _add_identity_content(self, image: np.ndarray, content: dict):
         """Add content for identity documents"""
@@ -92,13 +104,38 @@ class MoroccanDocumentGenerator:
         
         y_pos = 600
         for label, value in fields:
-            # Add label
-            cv2.putText(image, label, (200, y_pos),
-                       cv2.FONT_HERSHEY_COMPLEX, 1.5, (0, 0, 0), 2)
+            # Split label into French and Arabic parts
+            fr_part, ar_part = label.split(" / ")
             
-            # Add value (simulating handwritten text)
-            cv2.putText(image, value, (200, y_pos + 60),
-                       cv2.FONT_HERSHEY_SCRIPT_SIMPLEX, 1.5, (0, 0, 0), 2)
+            # Add French label
+            image = self.text_renderer.draw_text(
+                image,
+                (200, y_pos), 
+                fr_part,
+                font_size=40,
+                arabic=False,
+                color=(0, 0, 0)
+            )
+            
+            # Add Arabic label
+            image = self.text_renderer.draw_text(
+                image,
+                (400, y_pos),
+                ar_part,
+                font_size=40,
+                arabic=True,
+                color=(0, 0, 0)
+            )
+            
+            # Add value
+            image = self.text_renderer.draw_text(
+                image,
+                (200, y_pos + 60),
+                value,
+                font_size=42,
+                arabic=any('\u0600' <= ch <= '\u06FF' for ch in value),
+                color=(0, 0, 0)
+            )
             
             y_pos += 200
     
@@ -108,10 +145,22 @@ class MoroccanDocumentGenerator:
         title_fr = content.get("title_fr", "CERTIFICAT")
         title_ar = content.get("title_ar", "شهادة")
         
-        cv2.putText(image, title_fr, (940, 500),
-                   cv2.FONT_HERSHEY_COMPLEX, 2, (0, 0, 0), 3)
-        cv2.putText(image, title_ar, (940, 600),
-                   cv2.FONT_HERSHEY_COMPLEX, 2, (0, 0, 0), 3)
+        image = self.text_renderer.draw_text(
+            image,
+            (940, 500),
+            title_fr,
+            font_size=56,
+            arabic=False,
+            color=(0, 0, 0)
+        )
+        image = self.text_renderer.draw_text(
+            image,
+            (940, 600),
+            title_ar,
+            font_size=56,
+            arabic=True,
+            color=(0, 0, 0)
+        )
         
         # Add certificate body
         body_fr = content.get("body_fr", "")
@@ -123,17 +172,34 @@ class MoroccanDocumentGenerator:
             line = []
             x_pos = 200
             
-            for word in words:
-                line.append(word)
-                if len(" ".join(line)) * 20 > 2080:  # width(2480) - 400, Approximate text width
-                    cv2.putText(image, " ".join(line), (x_pos, y_pos),
-                              cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 0), 2)
-                    line = []
-                    y_pos += 50
+            is_arabic = any('\u0600' <= c <= '\u06FF' for c in text)
+            joined_text = text  # Keep text intact for Arabic
+            if not is_arabic:
+                for word in words:
+                    line.append(word)
+                    if len(" ".join(line)) * 20 > 2080:  # width(2480) - 400
+                        joined_text = " ".join(line)
+                        line = []
+                        image = self.text_renderer.draw_text(
+                            image,
+                            (x_pos, y_pos),
+                            joined_text,
+                            font_size=32,
+                            arabic=is_arabic,
+                            color=(0, 0, 0)
+                        )
+                        y_pos += 50
             
-            if line:
-                cv2.putText(image, " ".join(line), (x_pos, y_pos),
-                              cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 0), 2)
+            if not is_arabic and line:
+                joined_text = " ".join(line)
+            image = self.text_renderer.draw_text(
+                image,
+                (x_pos, y_pos),
+                joined_text,
+                font_size=32,
+                arabic=is_arabic,
+                color=(0, 0, 0)
+            )
             y_pos += 100
     
     def _add_stamp_and_signature(self, image: np.ndarray):
@@ -144,11 +210,23 @@ class MoroccanDocumentGenerator:
             stamp = cv2.imread(str(stamp_path))
             if stamp is not None:
                 h, w = stamp.shape[:2]
+                image_region = image[2800:2800+h, 1800:1800+w]
+                # Ensure both the image region and stamp have same number of channels
+                image_region = image_utils.ensure_3ch(image_region)
+                stamp = image_utils.ensure_3ch(stamp)
                 image[2800:2800+h, 1800:1800+w] = stamp
         
         # Add signature area
-        cv2.putText(image, "Signature / إمضاء", (400, 2900),
-                   cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 0), 2)
+        # Draw signature label with Arabic support
+        image = self.text_renderer.draw_text(
+            image,
+            (400, 2900),
+            "Signature / إمضاء",
+            font_size=32,
+            arabic=True,
+            color=(0, 0, 0)
+        )
+        image = np.ascontiguousarray(image)  # Ensure contiguous array for OpenCV
         cv2.rectangle(image, (400, 2950), (800, 3150), (0, 0, 0), 2)
 
 @pytest.fixture(scope="session")

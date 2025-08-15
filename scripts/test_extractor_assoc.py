@@ -77,6 +77,10 @@ def main():
         "arabic": TesseractEngine("arabic"),
         # "hybrid": TesseractEngine("french"),  # optional fallback
     }
+    
+    # Add receipt OCR for receipt number field
+    from src.ocr.receipt import ReceiptOCR
+    engines["receipt"] = ReceiptOCR()
 
     result = extractor.run(img, args.template, engines)
     # Pretty print the normalized fields only

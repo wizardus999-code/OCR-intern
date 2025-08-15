@@ -25,16 +25,29 @@ class HybridOCR:
         Returns dictionary with 'arabic' and 'french' regions as bounding boxes
         """
         regions = {'arabic': [], 'french': []}
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if len(image.shape) == 3 else image
+        if image is None or image.size == 0:
+            return regions  # early
+
+        # Convert to grayscale and threshold
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if image.ndim == 3 else image
+        _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         
-        # Apply morphological operations to identify text blocks
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (15,3))
-        dilated = cv2.dilate(gray, kernel, iterations=3)
+        # Create a horizontal kernel
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 3))
+        dilated = cv2.dilate(binary, kernel, iterations=2)
         
+        # Remove noise
+        cleaned = cv2.morphologyEx(dilated, cv2.MORPH_CLOSE, kernel, iterations=1)
+
         # Find contours of text regions
-        contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(cleaned, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
+        min_area = 500  # Minimum contour area to consider
         for contour in contours:
+            area = cv2.contourArea(contour)
+            if area < min_area:
+                continue
+                
             x, y, w, h = cv2.boundingRect(contour)
             roi = gray[y:y+h, x:x+w]
             
@@ -46,6 +59,11 @@ class HybridOCR:
                 regions['arabic'].append((x, y, w, h))
             else:
                 regions['french'].append((x, y, w, h))
+
+        # Full-page Arabic fallback if no Arabic regions detected
+        h, w = gray.shape[:2]
+        if not regions['arabic']:
+            regions['arabic'].append((0, 0, w, h))
                 
         return regions
         
@@ -53,6 +71,9 @@ class HybridOCR:
         """
         Process document using both OCR engines intelligently
         """
+        if image is None or image.size == 0:
+            raise ValueError("Invalid image input")
+
         try:
             # Analyze layout first
             regions = self.analyze_layout(image)

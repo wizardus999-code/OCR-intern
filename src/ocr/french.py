@@ -1,6 +1,7 @@
 import pytesseract
 import numpy as np
 import cv2
+import unicodedata
 from typing import List, Optional, Dict, Pattern
 import re
 
@@ -11,6 +12,7 @@ class FrenchOCR(BaseOCREngine):
     
     def __init__(self, config_path: Optional[str] = None):
         super().__init__(config_path)
+        self.last_result = None
         self.last_results: List[OCRResult] = []
         
         # Morocco-specific French patterns
@@ -22,7 +24,7 @@ class FrenchOCR(BaseOCREngine):
         
     def preprocess_image(self, image: np.ndarray) -> np.ndarray:
         """
-        Preprocess image for optimal French text recognition
+        Preprocess image for optimal French text recognition with accent preservation
         Specialized for Moroccan administrative documents
         """
         # Convert to grayscale if needed
@@ -31,36 +33,55 @@ class FrenchOCR(BaseOCREngine):
         else:
             gray = image.copy()
             
-        # Enhance contrast using CLAHE
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-        enhanced = clahe.apply(gray)
+        # Scale to higher DPI for better accent detection
+        scale_factor = 300 / 72  # Scale to 300 DPI
+        scaled = cv2.resize(gray, None, fx=scale_factor, fy=scale_factor, 
+                          interpolation=cv2.INTER_CUBIC)
+            
+        # Multi-stage enhancement
+        # First CLAHE pass - global enhancement
+        clahe1 = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
+        enhanced1 = clahe1.apply(scaled)
         
-        # Apply Gaussian blur to reduce noise
-        blurred = cv2.GaussianBlur(enhanced, (3,3), 0)
+        # Second CLAHE pass - local detail enhancement
+        clahe2 = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(4,4))
+        enhanced2 = clahe2.apply(enhanced1)
         
-        # Use Otsu's thresholding for better text separation
-        _, binary = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        # Denoise while preserving accent marks
+        denoised = cv2.fastNlMeansDenoising(enhanced2,
+                                           h=10,
+                                           templateWindowSize=7,
+                                           searchWindowSize=21)
         
-        return binary
+        # Adaptive thresholding for better handling of varying text weights
+        binary = cv2.adaptiveThreshold(denoised,
+                                     255,
+                                     cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                     cv2.THRESH_BINARY,
+                                     11,
+                                     2)
+        
+        # Create kernels for morphological operations
+        kernel_vert = cv2.getStructuringElement(cv2.MORPH_RECT, (1,2))
+        kernel_horz = cv2.getStructuringElement(cv2.MORPH_RECT, (2,1))
+        
+        # Vertical and horizontal refinement
+        vert = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel_vert)
+        processed = cv2.morphologyEx(vert, cv2.MORPH_CLOSE, kernel_horz)
+        
+        # Edge enhancement for better character definition
+        edge_enhanced = cv2.addWeighted(denoised, 0.7, processed, 0.3, 0)
+        
+        return edge_enhanced
         
     def postprocess_text(self, text: str) -> str:
         """
-        Post-process French OCR results
-        Applies Morocco-specific corrections and formatting
+        Post-process French OCR results with accent-agnostic normalization
         """
-        if not text.strip():
-            return text
-            
-        # Fix common OCR errors in French text
-        text = text.replace('|', 'I')  # Common confusion
-        text = text.replace('1', 'l')  # Number 1 vs letter l
-        
-        # Check for administrative patterns
-        for pattern_name, pattern in self.common_patterns.items():
-            if pattern.search(text):
-                self.logger.info(f"Found administrative pattern: {pattern_name}")
-                
-        return text.strip()
+        # accent-agnostic normalization
+        nfkd = unicodedata.normalize("NFKD", text)
+        no_accents = "".join(ch for ch in nfkd if not unicodedata.combining(ch))
+        return no_accents
         
     def process_document(self, image: np.ndarray) -> List[OCRResult]:
         """
