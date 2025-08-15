@@ -5,7 +5,6 @@ import pytesseract
 import numpy as np
 from pathlib import Path
 import logging
-import os
 from dataclasses import dataclass, asdict
 
 # Configure tessdata path
@@ -162,3 +161,81 @@ class BaseOCREngine(ABC):
             return lang in langs
         except Exception:
             return False
+
+    def get_confidence(self) -> float:
+        """Return average confidence of last OCR operation
+
+        Returns:
+            float: Average confidence score between 0 and 100, or 0 if no results available
+        """
+        if not hasattr(self, "last_results"):
+            return 0.0
+        if not self.last_results:
+            return 0.0
+        return np.mean([r.confidence for r in self.last_results])
+
+    def _parse_data_dict_to_results(
+        self, d: Dict[str, Any], lang: str
+    ) -> List[OCRResult]:
+        """Parse Tesseract output dictionary into OCRResult objects
+
+        Args:
+            d: Dictionary from pytesseract.image_to_data with Output.DICT
+            lang: Language code for the OCR results
+
+        Returns:
+            List[OCRResult]: List of OCR results from the data
+        """
+        out: List[OCRResult] = []
+        n = len(d.get("text", []))
+        for i in range(n):
+            text = (d["text"][i] or "").strip()
+            try:
+                conf = float(d["conf"][i])
+            except Exception:
+                conf = -1.0
+            if text and conf >= 0:
+                out.append(
+                    OCRResult(
+                        text=text,
+                        confidence=conf,
+                        bbox=(d["left"][i], d["top"][i], d["width"][i], d["height"][i]),
+                        lang=lang,
+                        page=(
+                            d.get("page_num", [1])[i]
+                            if isinstance(d.get("page_num"), list)
+                            else d.get("page_num", 1)
+                        ),
+                    )
+                )
+        return out
+
+    def process(self, image: np.ndarray) -> List[OCRResult]:
+        """Process image and extract text in the specified language
+
+        Each subclass should define its language code and any special text
+        processing in process_text().
+
+        Args:
+            image: Image array to process
+
+        Returns:
+            List[OCRResult]: List of OCR results
+
+        Raises:
+            NotImplementedError: If lang_code property is not defined
+        """
+        if not hasattr(self, "lang_code"):
+            raise NotImplementedError("Subclass must define lang_code property")
+
+        # Configure Tesseract
+        config = f"--oem 3 --psm 3 -l {self.lang_code}"
+
+        # Perform OCR
+        result = pytesseract.image_to_data(
+            image, config=config, output_type=pytesseract.Output.DICT
+        )
+
+        # Process results
+        self.last_results = self._parse_data_dict_to_results(result, self.lang_code)
+        return self.last_results

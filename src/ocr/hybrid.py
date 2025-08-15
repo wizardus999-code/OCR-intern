@@ -1,7 +1,6 @@
 ﻿from typing import List, Optional, Dict, Tuple
 import numpy as np
 import cv2
-from concurrent.futures import ThreadPoolExecutor
 import logging
 
 from .arabic import ArabicOCR

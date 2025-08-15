@@ -8,34 +8,23 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QProgressBar,
     QTextEdit,
-    QComboBox,
     QGroupBox,
     QTableWidget,
     QTableWidgetItem,
-    QSplitter,
-    QMenu,
-    QTabWidget,
-    QCheckBox,
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSettings, QTimer
-from PyQt6.QtGui import QPixmap, QImage, QAction
-import sqlite3
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtGui import QPixmap, QImage
 from pathlib import Path
-import json
 import cv2
 import numpy as np
-from pathlib import Path
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from queue import Queue
-import threading
 
 from src.utils.document_management import DocumentCache, TemplateManager
 
 from src.ocr.hybrid import HybridOCR
-from src.ocr.base import OCRResult
 from src.preprocessing.preprocess import PreprocessingPipeline
 
 

@@ -90,8 +90,8 @@ class PostProcessor:
             # Only mark as authorization if it's not a demande/application
             if doc_type is None:
                 doc_type = "authorization"
-        # tolerate missing 'e' in 'déclaration' → 'dclaration'
-        elif re.search(r"de?claration", fold_letters) or ("تصريح" in txt_lower):
+        # Match both 'declaration' and 'déclaration', with or without the 'e'
+        elif re.search(r"d[ée]?claration", fold_letters) or ("تصريح" in txt_lower):
             doc_type = "declaration"
 
         processed_results["metadata"]["document_type"] = doc_type

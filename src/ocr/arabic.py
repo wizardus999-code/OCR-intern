@@ -4,7 +4,7 @@ import arabic_reshaper
 from bidi.algorithm import get_display
 import numpy as np
 import cv2
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 
 from .base import BaseOCREngine, OCRResult
 
@@ -15,6 +15,7 @@ class ArabicOCR(BaseOCREngine):
     def __init__(self, config_path: Optional[str] = None):
         super().__init__(config_path)
         self.last_results: List[OCRResult] = []
+        self.lang_code = "ara"
 
     def _tess_config_ar(self, psm: int = 6) -> str:
         # LSTM only, keep spaces, and avoid Latin bleed-through
@@ -23,27 +24,6 @@ class ArabicOCR(BaseOCREngine):
             "-c preserve_interword_spaces=1 "
             "-c tessedit_char_blacklist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
         )
-
-    def _parse_data_dict_to_results(self, d: Dict[str, Any]) -> List[OCRResult]:
-        out = []
-        n = len(d.get("text", []))
-        for i in range(n):
-            text = (d["text"][i] or "").strip()
-            try:
-                conf = float(d["conf"][i])
-            except Exception:
-                conf = -1.0
-            if text and conf >= 0:
-                out.append(
-                    OCRResult(
-                        text=text,
-                        confidence=conf,
-                        bbox=(d["left"][i], d["top"][i], d["width"][i], d["height"][i]),
-                        lang="ara",
-                        page=d.get("page_num", [1])[i],
-                    )
-                )
-        return out
 
         # Morocco-specific Arabic patterns
         self.common_phrases = {
@@ -119,7 +99,7 @@ class ArabicOCR(BaseOCREngine):
             config=self._tess_config_ar(6),
             output_type=Output.DICT,
         )
-        results = self._parse_data_dict_to_results(d)
+        results = self._parse_data_dict_to_results(d, "ara")
 
         # Fallback: up-scale + psm 7 if nothing recognized
         if not results:
@@ -135,61 +115,17 @@ class ArabicOCR(BaseOCREngine):
                 config=self._tess_config_ar(7),
                 output_type=Output.DICT,
             )
-            results = self._parse_data_dict_to_results(d2)
+            results = self._parse_data_dict_to_results(d2, "ara")
 
         return results or []
 
-    def get_confidence(self) -> float:
-        """Return average confidence of last OCR operation"""
-        if not self.last_results:
-            return 0.0
-        return np.mean([r.confidence for r in self.last_results])
-
     def process(self, image) -> List[OCRResult]:
-        """Process image and extract Arabic text"""
-        # Configure Tesseract for Arabic
-        config = r"--oem 3 --psm 3 -l ara"
+        """Process image and extract Arabic text with bidirectional text handling"""
+        results = super().process(image)
 
-        # Perform OCR
-        result = pytesseract.image_to_data(
-            image, config=config, output_type=pytesseract.Output.DICT
-        )
+        # Apply Arabic-specific text processing
+        for result in results:
+            reshaped_text = arabic_reshaper.reshape(result.text)
+            result.text = get_display(reshaped_text)
 
-        # Process results
-        ocr_results: List[OCRResult] = []
-        confidences = []
-
-        for i in range(len(result["text"])):
-            if int(result["conf"][i]) > -1:  # Filter out low confidence results
-                text = result["text"][i]
-                conf = float(result["conf"][i])
-
-                if text.strip():  # Only process non-empty text
-                    # Reshape Arabic text for proper display
-                    reshaped_text = arabic_reshaper.reshape(text)
-                    bidi_text = get_display(reshaped_text)
-
-                    ocr_result = OCRResult(
-                        text=bidi_text,
-                        confidence=conf,
-                        bbox=(
-                            result["left"][i],
-                            result["top"][i],
-                            result["width"][i],
-                            result["height"][i],
-                        ),
-                        lang="ara",
-                        page=result.get("page_num", [1])[i],
-                    )
-                    ocr_results.append(ocr_result)
-                    confidences.append(conf)
-
-        # Update confidence score
-        self.confidence = np.mean(confidences) if confidences else 0.0
-        self.last_results = ocr_results
-
-        return ocr_results
-
-    def get_confidence(self):
-        """Return confidence score of last OCR operation"""
-        return self.confidence
+        return results

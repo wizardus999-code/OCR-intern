@@ -2,8 +2,6 @@ import pytest
 import numpy as np
 import cv2
 from pathlib import Path
-import os
-from typing import Tuple
 
 from src.ocr.arabic import ArabicOCR
 from src.ocr.french import FrenchOCR

@@ -5,19 +5,13 @@ from PyQt6.QtWidgets import (
     QTabWidget,
     QLabel,
     QComboBox,
-    QPushButton,
     QTableWidget,
     QTableWidgetItem,
 )
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QPixmap
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
-import numpy as np
-from datetime import datetime, timedelta
-from typing import Dict, List
-import seaborn as sns
 
 from src.utils.performance_analytics import PerformanceAnalytics
 
@@ -197,13 +191,10 @@ class PerformanceDashboard(QWidget):
 
     def _update_overview_tab(self):
         """Update overview tab data"""
-        # Get time range
-        days = {"Last 24 Hours": 1, "Last Week": 7, "Last Month": 30}[
+        # Get time range for chart data
+        {"Last 24 Hours": 1, "Last Week": 7, "Last Month": 30}[
             self.time_range.currentText()
         ]
-
-        # Update summary metrics
-        summary = self.analytics.get_performance_summary(days)
 
         # Update performance chart
         self.performance_figure.clear()

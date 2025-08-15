@@ -1,6 +1,8 @@
-﻿import os, shutil
+﻿import os
+import shutil
 from pathlib import Path
-import cv2, numpy as np
+import cv2
+import numpy as np
 import pytesseract
 from pytesseract import Output
 

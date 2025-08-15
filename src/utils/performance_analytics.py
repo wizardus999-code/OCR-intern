@@ -1,9 +1,7 @@
-from typing import Dict, List, Optional
-import numpy as np
+from typing import Dict, List
 from datetime import datetime, timedelta
 import sqlite3
 from pathlib import Path
-import json
 import matplotlib.pyplot as plt
 from io import BytesIO
 

@@ -1,6 +1,5 @@
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Any
 import json
-from pathlib import Path
 import numpy as np
 import cv2
 from dataclasses import dataclass
@@ -124,7 +123,6 @@ class TemplateExtractor:
         for field_id, region_info in regions.items():
             section, name = field_id.split(".")
             roi = region_info["image"]
-            lang = region_info["lang"]
             bbox = region_info["bbox"]
 
             # Build OCR configuration

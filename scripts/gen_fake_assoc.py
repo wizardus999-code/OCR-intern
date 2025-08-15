@@ -1,6 +1,7 @@
 ﻿from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
-import json, argparse
+import json
+import argparse
 import arabic_reshaper
 from bidi.algorithm import get_display
 

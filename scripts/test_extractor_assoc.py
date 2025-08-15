@@ -1,22 +1,26 @@
-﻿import os, sys, argparse, json
+﻿import os
+import sys
+import argparse
+import json
 from pathlib import Path
 import cv2
 import numpy as np
 import pytesseract
 from pytesseract import Output
 
+# Allow repo imports
+repo_root = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(repo_root))
+
+from src.templates.template_extractor import TemplateExtractor
+
 # Configure stdout for UTF-8
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-
-# Allow repo imports
-sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 # Make tessdata resilient
 repo_tessdata = Path(__file__).resolve().parents[1] / "tessdata"
 if repo_tessdata.exists():
     os.environ.setdefault("TESSDATA_PREFIX", str(repo_tessdata))
-
-from src.templates.template_extractor import TemplateExtractor
 
 # Ensure tessdata is found (you already set this, but just in case)
 repo_root = Path(__file__).resolve().parents[1]

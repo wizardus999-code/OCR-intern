@@ -3,11 +3,8 @@ import cv2
 import numpy as np
 from pathlib import Path
 from datetime import datetime
-import json
-import os
 
 from src.ocr.hybrid import HybridOCR
-from src.types.document import Document
 
 # Test fixtures path
 FIXTURES_DIR = Path(__file__).parent.parent / "fixtures"
@@ -250,7 +247,6 @@ def test_certificate_recognition(sample_documents):
 
 def test_stamp_detection(sample_documents):
     """Test detection of official stamps"""
-    ocr = HybridOCR()
     image = cv2.imread(sample_documents["certificate"])
 
     # Convert to grayscale for stamp detection

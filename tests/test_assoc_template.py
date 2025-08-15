@@ -1,5 +1,8 @@
 ﻿from __future__ import annotations
-import json, re, subprocess, sys
+import json
+import re
+import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]

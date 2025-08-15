@@ -1,4 +1,5 @@
-﻿import os, shutil
+﻿import os
+import shutil
 from pathlib import Path
 import numpy as np
 import pytesseract

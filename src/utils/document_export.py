@@ -1,8 +1,8 @@
-from typing import Dict, List, Optional, Union
+from typing import Dict, List
 import json
 from pathlib import Path
 import docx
-from docx.shared import Pt, Cm
+from docx.shared import Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 import pandas as pd
 from datetime import datetime

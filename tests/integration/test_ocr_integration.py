@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 from pathlib import Path
 import time
-from typing import Dict, List
+from typing import Dict
 
 from src.ocr.hybrid import HybridOCR
 from src.preprocessing.preprocess import PreprocessingPipeline
@@ -120,7 +120,7 @@ class TestEndToEnd:
 
             # Debug print
             print(f"Text for {doc_type}:", all_text)
-            print(f"Processed:", processed_results)
+            print("Processed:", processed_results)
 
             assert (
                 processed_results["metadata"]["document_type"] == doc_type

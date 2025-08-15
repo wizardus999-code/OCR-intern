@@ -2,7 +2,7 @@
 from pytesseract import Output
 import numpy as np
 import cv2
-from typing import List, Optional, Dict, Pattern, Any
+from typing import List, Optional
 import re
 
 from .base import BaseOCREngine, OCRResult
@@ -14,6 +14,7 @@ class FrenchOCR(BaseOCREngine):
     def __init__(self, config_path: Optional[str] = None):
         super().__init__(config_path)
         self.last_results: List[OCRResult] = []
+        self.lang_code = "fra"
 
         # Morocco-specific French patterns
         self.common_patterns = {
@@ -80,80 +81,4 @@ class FrenchOCR(BaseOCREngine):
         )
 
         # Parse and return results
-        return self._parse_data_dict_to_results(d) or []
-
-    def get_confidence(self) -> float:
-        """Return average confidence of last OCR operation"""
-        if not self.last_results:
-            return 0.0
-        return np.mean([r.confidence for r in self.last_results])
-
-    def process(self, image) -> List[OCRResult]:
-        """Process image and extract French text"""
-        # Configure Tesseract for French
-        config = r"--oem 3 --psm 3 -l fra"
-
-        # Perform OCR
-        result = pytesseract.image_to_data(
-            image, config=config, output_type=pytesseract.Output.DICT
-        )
-
-        # Process results
-        ocr_results: List[OCRResult] = []
-        confidences = []
-
-        for i in range(len(result["text"])):
-            if int(result["conf"][i]) > -1:  # Filter out low confidence results
-                text = result["text"][i]
-                conf = float(result["conf"][i])
-
-                if text.strip():  # Only process non-empty text
-                    ocr_result = OCRResult(
-                        text=text,
-                        confidence=conf,
-                        bbox=(
-                            result["left"][i],
-                            result["top"][i],
-                            result["width"][i],
-                            result["height"][i],
-                        ),
-                        lang="fra",
-                        page=result.get("page_num", [1])[i],
-                    )
-                    ocr_results.append(ocr_result)
-                    confidences.append(conf)
-
-        # Update confidence score
-        self.confidence = np.mean(confidences) if confidences else 0.0
-        self.last_results = ocr_results
-
-        return ocr_results
-
-    def get_confidence(self):
-        """Return confidence score of last OCR operation"""
-        return self.confidence
-
-    def _parse_data_dict_to_results(self, d: Dict[str, Any]) -> List[OCRResult]:
-        out: List[OCRResult] = []
-        n = len(d.get("text", []))
-        for i in range(n):
-            text = (d["text"][i] or "").strip()
-            try:
-                conf = float(d["conf"][i])
-            except Exception:
-                conf = -1.0
-            if text and conf >= 0:
-                out.append(
-                    OCRResult(
-                        text=text,
-                        confidence=conf,
-                        bbox=(d["left"][i], d["top"][i], d["width"][i], d["height"][i]),
-                        lang="french",
-                        page=(
-                            d.get("page_num", [1])[i]
-                            if isinstance(d.get("page_num"), list)
-                            else d.get("page_num", 1)
-                        ),
-                    )
-                )
-        return out
+        return self._parse_data_dict_to_results(d, "fra") or []

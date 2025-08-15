@@ -1,11 +1,7 @@
 import os
 from pathlib import Path
-
-# Set tessdata path if local copy exists
-repo_tessdata = Path(__file__).resolve().parents[2] / "tessdata"
-if repo_tessdata.exists():
-    os.environ.setdefault("TESSDATA_PREFIX", str(repo_tessdata))
-
+import cv2
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtWidgets import (
     QMainWindow,
     QWidget,
@@ -15,15 +11,17 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QProgressBar,
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
-import cv2
-import numpy as np
 
 from src.ocr.arabic import ArabicOCR
 from src.ocr.french import FrenchOCR
 from src.preprocessing.preprocess import PreprocessingPipeline
 from src.postprocessing.postprocess import PostProcessor
 from src.types.document import Document
+
+# Set tessdata path if local copy exists
+repo_tessdata = Path(__file__).resolve().parents[2] / "tessdata"
+if repo_tessdata.exists():
+    os.environ.setdefault("TESSDATA_PREFIX", str(repo_tessdata))
 
 
 class OCRWorker(QThread):
