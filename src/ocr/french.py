@@ -1,25 +1,29 @@
-import pytesseract
+﻿import pytesseract
+from pytesseract import Output
 import numpy as np
 import cv2
-from typing import List, Optional, Dict, Pattern
+from typing import List, Optional, Dict, Pattern, Any
 import re
 
 from .base import BaseOCREngine, OCRResult
 
+
 class FrenchOCR(BaseOCREngine):
     """Specialized OCR engine for French text in Moroccan administrative documents"""
-    
+
     def __init__(self, config_path: Optional[str] = None):
         super().__init__(config_path)
         self.last_results: List[OCRResult] = []
-        
+
         # Morocco-specific French patterns
         self.common_patterns = {
-            'prefecture': re.compile(r"pr[ée]fecture\s+d[e']\s+\w+", re.IGNORECASE),
-            'province': re.compile(r"province\s+d[e']\s+\w+", re.IGNORECASE),
-            'commune': re.compile(r"commune\s+(?:urbaine|rurale)?\s+d[e']\s+\w+", re.IGNORECASE)
+            "prefecture": re.compile(r"pr[Ã©e]fecture\s+d[e']\s+\w+", re.IGNORECASE),
+            "province": re.compile(r"province\s+d[e']\s+\w+", re.IGNORECASE),
+            "commune": re.compile(
+                r"commune\s+(?:urbaine|rurale)?\s+d[e']\s+\w+", re.IGNORECASE
+            ),
         }
-        
+
     def preprocess_image(self, image: np.ndarray) -> np.ndarray:
         """
         Preprocess image for optimal French text recognition
@@ -30,19 +34,19 @@ class FrenchOCR(BaseOCREngine):
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         else:
             gray = image.copy()
-            
+
         # Enhance contrast using CLAHE
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
         enhanced = clahe.apply(gray)
-        
+
         # Apply Gaussian blur to reduce noise
-        blurred = cv2.GaussianBlur(enhanced, (3,3), 0)
-        
+        blurred = cv2.GaussianBlur(enhanced, (3, 3), 0)
+
         # Use Otsu's thresholding for better text separation
         _, binary = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        
+
         return binary
-        
+
     def postprocess_text(self, text: str) -> str:
         """
         Post-process French OCR results
@@ -50,90 +54,106 @@ class FrenchOCR(BaseOCREngine):
         """
         if not text.strip():
             return text
-            
+
         # Fix common OCR errors in French text
-        text = text.replace('|', 'I')  # Common confusion
-        text = text.replace('1', 'l')  # Number 1 vs letter l
-        
+        text = text.replace("|", "I")  # Common confusion
+        text = text.replace("1", "l")  # Number 1 vs letter l
+
         # Check for administrative patterns
         for pattern_name, pattern in self.common_patterns.items():
             if pattern.search(text):
                 self.logger.info(f"Found administrative pattern: {pattern_name}")
-                
+
         return text.strip()
-        
+
     def process_document(self, image: np.ndarray) -> List[OCRResult]:
         """
-        Process a Moroccan administrative document with French text
+        Process document using French OCR
         """
         # Validate language support
-        if not self.validate_language('fra'):
+        if not self.validate_language("fra"):
             raise RuntimeError("French language support not installed in Tesseract")
-            
-        # Process with French-specific settings
-        results = self.process_image(
-            image,
-            lang='fra',
-            psm=6  # Assume uniform block of text
+
+        # Process the image
+        d = pytesseract.image_to_data(
+            image, lang="fra", config="--psm 6 --oem 1", output_type=Output.DICT
         )
-        self.last_results = results
-        
-        # Calculate overall confidence
-        if results:
-            avg_confidence = np.mean([r.confidence for r in results])
-            self.logger.info(f"Document processed with average confidence: {avg_confidence:.2f}%")
-            
-        return results
-        
+
+        # Parse and return results
+        return self._parse_data_dict_to_results(d) or []
+
     def get_confidence(self) -> float:
         """Return average confidence of last OCR operation"""
         if not self.last_results:
             return 0.0
         return np.mean([r.confidence for r in self.last_results])
-        
+
     def process(self, image) -> List[OCRResult]:
         """Process image and extract French text"""
         # Configure Tesseract for French
-        config = r'--oem 3 --psm 3 -l fra'
-        
+        config = r"--oem 3 --psm 3 -l fra"
+
         # Perform OCR
         result = pytesseract.image_to_data(
-            image,
-            config=config,
-            output_type=pytesseract.Output.DICT
+            image, config=config, output_type=pytesseract.Output.DICT
         )
-        
+
         # Process results
         ocr_results: List[OCRResult] = []
         confidences = []
-        
+
         for i in range(len(result["text"])):
             if int(result["conf"][i]) > -1:  # Filter out low confidence results
                 text = result["text"][i]
                 conf = float(result["conf"][i])
-                
+
                 if text.strip():  # Only process non-empty text
                     ocr_result = OCRResult(
                         text=text,
                         confidence=conf,
-                        bounding_box=(
+                        bbox=(
                             result["left"][i],
                             result["top"][i],
                             result["width"][i],
-                            result["height"][i]
+                            result["height"][i],
                         ),
-                        language='fra',
-                        page_number=result.get('page_num', [1])[i]
+                        lang="fra",
+                        page=result.get("page_num", [1])[i],
                     )
                     ocr_results.append(ocr_result)
                     confidences.append(conf)
-        
+
         # Update confidence score
         self.confidence = np.mean(confidences) if confidences else 0.0
         self.last_results = ocr_results
-        
+
         return ocr_results
-    
+
     def get_confidence(self):
         """Return confidence score of last OCR operation"""
         return self.confidence
+
+    def _parse_data_dict_to_results(self, d: Dict[str, Any]) -> List[OCRResult]:
+        out: List[OCRResult] = []
+        n = len(d.get("text", []))
+        for i in range(n):
+            text = (d["text"][i] or "").strip()
+            try:
+                conf = float(d["conf"][i])
+            except Exception:
+                conf = -1.0
+            if text and conf >= 0:
+                out.append(
+                    OCRResult(
+                        text=text,
+                        confidence=conf,
+                        bbox=(d["left"][i], d["top"][i], d["width"][i], d["height"][i]),
+                        lang="french",
+                        page=(
+                            d.get("page_num", [1])[i]
+                            if isinstance(d.get("page_num"), list)
+                            else d.get("page_num", 1)
+                        ),
+                    )
+                )
+        return out

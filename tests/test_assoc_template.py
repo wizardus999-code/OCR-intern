@@ -5,8 +5,18 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PY = sys.executable
 
+
 def run(cmd, cwd: Path | None = None) -> subprocess.CompletedProcess:
-    return subprocess.run(cmd, cwd=str(cwd or ROOT), check=True, capture_output=True, text=True)
+    return subprocess.run(
+        cmd,
+        cwd=str(cwd or ROOT),
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",  # ensure UTF-8 decoding
+        errors="replace",  # safely handle any decode errors
+    )
+
 
 def test_assoc_smoke():
     # 1) Make a synthetic receipt image
@@ -15,12 +25,16 @@ def test_assoc_smoke():
     run([PY, str(ROOT / "scripts" / "gen_fake_assoc.py"), "-o", str(out_img)])
 
     # 2) Run template extractor (prints JSON)
-    cp = run([
-        PY,
-        str(ROOT / "scripts" / "test_extractor_assoc.py"),
-        "--image", str(out_img),
-        "--template", "assoc_receipt",
-    ])
+    cp = run(
+        [
+            PY,
+            str(ROOT / "scripts" / "test_extractor_assoc.py"),
+            "--image",
+            str(out_img),
+            "--template",
+            "assoc_receipt",
+        ]
+    )
     data = json.loads(cp.stdout)
     f = data["fields"]
 

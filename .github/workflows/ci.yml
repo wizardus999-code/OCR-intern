@@ -12,6 +12,7 @@ jobs:
     env:
       PIP_DISABLE_PIP_VERSION_CHECK: 1
       PYTHONUNBUFFERED: 1
+      PYTHONIOENCODING: utf-8
       # make OCR use repo tessdata (fetched in next step)
       TESSDATA_PREFIX: ${{ github.workspace }}\tessdata
 
