@@ -38,3 +38,5 @@ opencv-python>=4.12,<5
 opencv-python-headless
 
 numpy
+arabic-reshaper
+python-bidi
