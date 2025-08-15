@@ -5,7 +5,7 @@
 ![License](https://img.shields.io/github/license/Trunsoest04/OCR-intern)
 ![Status](https://img.shields.io/badge/status-Alpha-blue)
 
-End-to-end OCR system optimized for Moroccan administrative documents with bilingual (FR+AR) processing, multi-format export (PDF/Word/Excel/JSON), performance analytics, and a GUI dashboard.
+End-to-end OCR system optimized for Moroccan administrative documents with bilingual (FR+AR) processing, multi-format export (PDF/Word/Excel/JSON), performance analytics, and a GUI dashboard. Includes automated testing and CI/CD integration.
 
 ## ✨ Highlights
 - **Templates**: Residency Certificate, Administrative Attestation, Construction Permit, Birth Extract.
