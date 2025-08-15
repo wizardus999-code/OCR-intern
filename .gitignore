@@ -1,15 +1,39 @@
 ﻿# Python
-.venv/
 __pycache__/
-*.pyc
-
-# Local config
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+.build/
+dist/
+build/
 .env
+.env.*
+.venv/
+venv/
+pip-wheel-metadata/
+.coverage*
+htmlcov/
+.mypy_cache/
+.pytype/
+.pytest_cache/
+.ipynb_checkpoints/
 
-# Generated images / samples
-samples/
-tmp_ocr_test*.png
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
 
-# Fonts / models (heavy, machine-specific)
-assets/fonts/
+# Project
 tessdata/*.traineddata
+samples/
+__snapshots__/
+*.log
+tmp_ocr_test*.png
+assets/fonts/
+
+# CI artifacts
+*.zip

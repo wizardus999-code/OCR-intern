@@ -1,0 +1,35 @@
+name: Python Tests
+
+on:
+  push:
+    branches: [ main, feat/*, fix/* ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+    
+    - name: Install Tesseract
+      run: |
+        $tesseractPath = "$env:GITHUB_WORKSPACE\tools\tesseract-ocr-w64-setup-5.3.3.20231005.exe"
+        Start-Process -FilePath $tesseractPath -ArgumentList "/S" -Wait
+        $env:Path += ";C:\Program Files\Tesseract-OCR"
+        tesseract --version
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Run tests
+      run: |
+        pytest tests/unit/test_ocr.py tests/unit/test_ocr_comprehensive.py tests/unit/test_morocco_documents.py tests/integration/test_ocr_integration.py -v

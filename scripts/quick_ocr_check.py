@@ -1,12 +1,15 @@
-﻿import os, shutil
+﻿import os
+import shutil
 from pathlib import Path
-import cv2, numpy as np
+import cv2
+import numpy as np
 import pytesseract
 from pytesseract import Output
 
-# Make Tesseract + tessdata reliable regardless of PATH
-repo_root = Path(__file__).resolve().parents[1]
-os.environ.setdefault("TESSDATA_PREFIX", str(repo_root / "tessdata"))
+# Make Tesseract + tessdata resilient
+repo_tessdata = Path(__file__).resolve().parents[1] / "tessdata"
+if repo_tessdata.exists():
+    os.environ.setdefault("TESSDATA_PREFIX", str(repo_tessdata))
 
 if shutil.which("tesseract") is None:
     p = Path(r"C:\Program Files\Tesseract-OCR\tesseract.exe")
@@ -23,12 +26,21 @@ print("Installed languages:", sorted(langs))
 # Build a clean synthetic French image
 W, H = 900, 220
 img = np.full((H, W, 3), 255, np.uint8)
-cv2.putText(img, "Bonjour, Préfecture 123", (30, 120),
-            cv2.FONT_HERSHEY_SIMPLEX, 1.6, (0,0,0), 3, cv2.LINE_AA)
+cv2.putText(
+    img,
+    "Bonjour, Préfecture 123",
+    (30, 120),
+    cv2.FONT_HERSHEY_SIMPLEX,
+    1.6,
+    (0, 0, 0),
+    3,
+    cv2.LINE_AA,
+)
 
 # Simple preprocessing (grayscale + Otsu)
 gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-_, th = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+_, th = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
 
 def ocr_with_conf(image, lang):
     d = pytesseract.image_to_data(image, lang=lang, output_type=Output.DICT)
@@ -41,8 +53,9 @@ def ocr_with_conf(image, lang):
             continue
         if v >= 0:
             confs.append(v)
-    conf = sum(confs)/len(confs) if confs else -1.0
+    conf = sum(confs) / len(confs) if confs else -1.0
     return text, conf
+
 
 # Run FRA
 txt_fra, conf_fra = ocr_with_conf(th, "fra")
