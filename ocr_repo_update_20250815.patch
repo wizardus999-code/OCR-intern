@@ -1,0 +1,706 @@
+--- a/template_extractor.py
++++ b/template_extractor.py
+@@ -4,7 +4,7 @@
+ from pathlib import Path
+ import cv2
+ import numpy as np
+-from src.postprocessing.validators import normalize_field
++from validators import normalize_field
+ 
+ def _build_tess_config(rel: Dict[str, Any]) -> str:
+     cfg: List[str] = []
+@@ -88,6 +88,9 @@
+                 crop = image[y:y+h, x:x+w]
+                 crop = _apply_scale(crop, rel)
+                 config = _build_tess_config(rel)
++                pre = rel.get('preproc')
++                if pre:
++                    crop = _apply_preproc_cv2(crop, pre)
+ 
+                 lang_key = rel.get('lang')
+                 if not lang_key:
+@@ -171,3 +174,44 @@
+         return out
+ 
+ 
++
++
++# ---- New: fast, safe, optional preprocessing (cv2) ----
++def _apply_preproc_cv2(img: "np.ndarray", cfg: Dict[str, Any]) -> "np.ndarray":
++    """
++    Lightweight preproc for ROI: grayscale -> optional resize -> optional Otsu binarize
++    -> optional invert -> optional dilation. Uses OpenCV only.
++    """
++    g = img
++    if g.ndim == 3:
++        g = cv2.cvtColor(g, cv2.COLOR_BGR2GRAY)
++    scale = float(cfg.get("resize", 1.0))
++    if scale and abs(scale - 1.0) > 1e-3:
++        new_w = max(1, int(g.shape[1] * scale))
++        new_h = max(1, int(g.shape[0] * scale))
++        g = cv2.resize(g, (new_w, new_h), interpolation=cv2.INTER_CUBIC if scale > 1.0 else cv2.INTER_AREA)
++    if cfg.get("binarize", "none") == "otsu":
++        _, g = cv2.threshold(g, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
++    if bool(cfg.get("invert", False)):
++        g = cv2.bitwise_not(g)
++    dilate_n = int(cfg.get("dilate", 0))
++    if dilate_n > 0:
++        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
++        g = cv2.dilate(g, kernel, iterations=dilate_n)
++    return g
++
++# ---- New: exported helper for tests & templates ----
++def median_digit_confidence(tokens: List[Dict[str, Any]]) -> float:
++    """Compute the median confidence over tokens that contain at least one digit or / -."""
++    digit_conf: List[float] = []
++    for rd in tokens:
++        t = rd.get("text", "") if isinstance(rd, dict) else getattr(rd, "text", "")
++        if any(ch.isdigit() for ch in (t or "")) or "/" in (t or "") or "-" in (t or ""):
++            c = rd.get("confidence", None) if isinstance(rd, dict) else getattr(rd, "confidence", None)
++            if c is None:
++                c = rd.get("conf", 0.0) if isinstance(rd, dict) else getattr(rd, "conf", 0.0)
++            try:
++                digit_conf.append(float(c))
++            except Exception:
++                pass
++    return float(np.median(digit_conf)) if digit_conf else 0.0
+
+
+--- a/morocco_templates.json
++++ b/morocco_templates.json
+@@ -13,129 +13,428 @@
+     ],
+     "regions": {
+       "title": {
+-        "fr": { "x": 0.08, "y": 0.08, "w": 0.84, "h": 0.08, "lang": "french", "psm": 7, "dpi": 300 },
+-        "ar": { "x": 0.08, "y": 0.16, "w": 0.84, "h": 0.09, "lang": "arabic", "psm": 7, "dpi": 300, "preserve_spaces": true }
++        "fr": {
++          "x": 0.08,
++          "y": 0.08,
++          "w": 0.84,
++          "h": 0.08,
++          "lang": "french",
++          "psm": 7,
++          "dpi": 300
++        },
++        "ar": {
++          "x": 0.08,
++          "y": 0.16,
++          "w": 0.84,
++          "h": 0.09,
++          "lang": "arabic",
++          "psm": 7,
++          "dpi": 300,
++          "preserve_spaces": true
++        }
+       },
+       "header": {
+-        "commune.fr": { "x": 0.08, "y": 0.26, "w": 0.40, "h": 0.06, "lang": "french", "psm": 7, "dpi": 300 },
+-        "commune.ar": { "x": 0.52, "y": 0.26, "w": 0.40, "h": 0.06, "lang": "arabic", "psm": 7, "dpi": 300, "preserve_spaces": true }
++        "commune.fr": {
++          "x": 0.08,
++          "y": 0.26,
++          "w": 0.4,
++          "h": 0.06,
++          "lang": "french",
++          "psm": 7,
++          "dpi": 300
++        },
++        "commune.ar": {
++          "x": 0.52,
++          "y": 0.26,
++          "w": 0.4,
++          "h": 0.06,
++          "lang": "arabic",
++          "psm": 7,
++          "dpi": 300,
++          "preserve_spaces": true
++        }
+       },
+       "body": {
+-        "association_name.fr": { "x": 0.10, "y": 0.45, "w": 0.80, "h": 0.08, "lang": "french", "psm": 7, "scale": 1.25 },
+-        "association_name.ar": { "x": 0.10, "y": 0.54, "w": 0.80, "h": 0.08, "lang": "arabic", "psm": 7, "scale": 1.25, "preserve_spaces": true },
+-        "receipt_no":           { "x": 0.10, "y": 0.64, "w": 0.40, "h": 0.07, "lang": "french", "psm": 7, "dpi": 300, "scale": 1.35, "whitelist": "0123456789/-", "preserve_spaces": true },
+-        "date.fr":              { "x": 0.55, "y": 0.64, "w": 0.35, "h": 0.07, "lang": "french", "psm": 7 }
++        "association_name.fr": {
++          "x": 0.1,
++          "y": 0.45,
++          "w": 0.8,
++          "h": 0.08,
++          "lang": "french",
++          "psm": 7,
++          "scale": 1.25
++        },
++        "association_name.ar": {
++          "x": 0.1,
++          "y": 0.54,
++          "w": 0.8,
++          "h": 0.08,
++          "lang": "arabic",
++          "psm": 7,
++          "scale": 1.25,
++          "preserve_spaces": true
++        },
++        "receipt_no": {
++          "x": 0.1,
++          "y": 0.64,
++          "w": 0.4,
++          "h": 0.07,
++          "lang": "french",
++          "psm": 7,
++          "dpi": 300,
++          "scale": 1.35,
++          "whitelist": "0123456789/-",
++          "preserve_spaces": true,
++          "preproc": {
++            "binarize": "otsu",
++            "dilate": 1,
++            "invert": false,
++            "resize": 1.3
++          }
++        },
++        "date.fr": {
++          "x": 0.55,
++          "y": 0.64,
++          "w": 0.35,
++          "h": 0.07,
++          "lang": "french",
++          "psm": 7,
++          "preproc": {
++            "binarize": "otsu",
++            "dilate": 0,
++            "invert": false,
++            "resize": 1.2
++          }
++        }
+       },
+       "footer": {}
+     }
+   },
+-
+   "certificat_residence": {
+     "name": "Certificat de Résidence",
+     "name_ar": "شهادة السكنى",
+     "template_version": "2.0",
+     "regions": {
+       "header": {
+-        "kingdom":   { "x": 0.4, "y": 0.1, "w": 0.2, "h": 0.05 },
+-        "ministry":  { "x": 0.35, "y": 0.15, "w": 0.3, "h": 0.05 },
+-        "prefecture":{ "x": 0.3, "y": 0.2, "w": 0.4, "h": 0.05 }
++        "kingdom": {
++          "x": 0.4,
++          "y": 0.1,
++          "w": 0.2,
++          "h": 0.05
++        },
++        "ministry": {
++          "x": 0.35,
++          "y": 0.15,
++          "w": 0.3,
++          "h": 0.05
++        },
++        "prefecture": {
++          "x": 0.3,
++          "y": 0.2,
++          "w": 0.4,
++          "h": 0.05
++        }
+       },
+       "title": {
+-        "fr": { "x": 0.35, "y": 0.3, "w": 0.3, "h": 0.06 },
+-        "ar": { "x": 0.35, "y": 0.36, "w": 0.3, "h": 0.06 }
++        "fr": {
++          "x": 0.35,
++          "y": 0.3,
++          "w": 0.3,
++          "h": 0.06
++        },
++        "ar": {
++          "x": 0.35,
++          "y": 0.36,
++          "w": 0.3,
++          "h": 0.06
++        }
+       },
+       "content": {
+-        "main_text": { "x": 0.1, "y": 0.45, "w": 0.8, "h": 0.3 },
+-        "signature": { "x": 0.6, "y": 0.8, "w": 0.3, "h": 0.15 },
+-        "stamp":     { "x": 0.65, "y": 0.75, "w": 0.2, "h": 0.2 }
++        "main_text": {
++          "x": 0.1,
++          "y": 0.45,
++          "w": 0.8,
++          "h": 0.3
++        },
++        "signature": {
++          "x": 0.6,
++          "y": 0.8,
++          "w": 0.3,
++          "h": 0.15
++        },
++        "stamp": {
++          "x": 0.65,
++          "y": 0.75,
++          "w": 0.2,
++          "h": 0.2
++        }
+       }
+     },
+-    "required_fields": ["full_name", "cin", "address", "issue_date"]
++    "required_fields": [
++      "full_name",
++      "cin",
++      "address",
++      "issue_date"
++    ]
+   },
+-
+   "attestation_administrative": {
+     "name": "Attestation Administrative",
+     "name_ar": "شهادة إدارية",
+     "template_version": "2.0",
+     "regions": {
+       "header": {
+-        "kingdom":   { "x": 0.4, "y": 0.1, "w": 0.2, "h": 0.05 },
+-        "ministry":  { "x": 0.35, "y": 0.15, "w": 0.3, "h": 0.05 },
+-        "prefecture":{ "x": 0.3, "y": 0.2, "w": 0.4, "h": 0.05 }
++        "kingdom": {
++          "x": 0.4,
++          "y": 0.1,
++          "w": 0.2,
++          "h": 0.05
++        },
++        "ministry": {
++          "x": 0.35,
++          "y": 0.15,
++          "w": 0.3,
++          "h": 0.05
++        },
++        "prefecture": {
++          "x": 0.3,
++          "y": 0.2,
++          "w": 0.4,
++          "h": 0.05
++        }
+       },
+       "title": {
+-        "fr": { "x": 0.35, "y": 0.3, "w": 0.3, "h": 0.06 },
+-        "ar": { "x": 0.35, "y": 0.36, "w": 0.3, "h": 0.06 }
++        "fr": {
++          "x": 0.35,
++          "y": 0.3,
++          "w": 0.3,
++          "h": 0.06
++        },
++        "ar": {
++          "x": 0.35,
++          "y": 0.36,
++          "w": 0.3,
++          "h": 0.06
++        }
+       },
+       "content": {
+-        "main_text": { "x": 0.1, "y": 0.45, "w": 0.8, "h": 0.3 },
+-        "signature": { "x": 0.6, "y": 0.8, "w": 0.3, "h": 0.15 },
+-        "stamp":     { "x": 0.65, "y": 0.75, "w": 0.2, "h": 0.2 }
++        "main_text": {
++          "x": 0.1,
++          "y": 0.45,
++          "w": 0.8,
++          "h": 0.3
++        },
++        "signature": {
++          "x": 0.6,
++          "y": 0.8,
++          "w": 0.3,
++          "h": 0.15
++        },
++        "stamp": {
++          "x": 0.65,
++          "y": 0.75,
++          "w": 0.2,
++          "h": 0.2
++        }
+       }
+     },
+-    "required_fields": ["full_name", "cin", "purpose", "issue_date"]
++    "required_fields": [
++      "full_name",
++      "cin",
++      "purpose",
++      "issue_date"
++    ]
+   },
+-
+   "autorisation_construction": {
+     "name": "Autorisation de Construction",
+     "name_ar": "رخصة البناء",
+     "template_version": "2.0",
+     "regions": {
+       "header": {
+-        "kingdom":   { "x": 0.4, "y": 0.1, "w": 0.2, "h": 0.05 },
+-        "ministry":  { "x": 0.35, "y": 0.15, "w": 0.3, "h": 0.05 },
+-        "prefecture":{ "x": 0.3, "y": 0.2, "w": 0.4, "h": 0.05 }
++        "kingdom": {
++          "x": 0.4,
++          "y": 0.1,
++          "w": 0.2,
++          "h": 0.05
++        },
++        "ministry": {
++          "x": 0.35,
++          "y": 0.15,
++          "w": 0.3,
++          "h": 0.05
++        },
++        "prefecture": {
++          "x": 0.3,
++          "y": 0.2,
++          "w": 0.4,
++          "h": 0.05
++        }
+       },
+       "permit_details": {
+-        "number": { "x": 0.1, "y": 0.3, "w": 0.3, "h": 0.05 },
+-        "date":   { "x": 0.5, "y": 0.3, "w": 0.3, "h": 0.05 }
++        "number": {
++          "x": 0.1,
++          "y": 0.3,
++          "w": 0.3,
++          "h": 0.05
++        },
++        "date": {
++          "x": 0.5,
++          "y": 0.3,
++          "w": 0.3,
++          "h": 0.05
++        }
+       },
+       "property_info": {
+-        "address":    { "x": 0.1, "y": 0.4, "w": 0.8, "h": 0.1 },
+-        "title_deed": { "x": 0.1, "y": 0.5, "w": 0.4, "h": 0.05 }
++        "address": {
++          "x": 0.1,
++          "y": 0.4,
++          "w": 0.8,
++          "h": 0.1
++        },
++        "title_deed": {
++          "x": 0.1,
++          "y": 0.5,
++          "w": 0.4,
++          "h": 0.05
++        }
+       },
+       "specifications": {
+-        "area": { "x": 0.1, "y": 0.6, "w": 0.3, "h": 0.05 },
+-        "type": { "x": 0.5, "y": 0.6, "w": 0.3, "h": 0.05 }
++        "area": {
++          "x": 0.1,
++          "y": 0.6,
++          "w": 0.3,
++          "h": 0.05
++        },
++        "type": {
++          "x": 0.5,
++          "y": 0.6,
++          "w": 0.3,
++          "h": 0.05
++        }
+       },
+       "approval": {
+-        "signature": { "x": 0.6, "y": 0.8, "w": 0.3, "h": 0.15 },
+-        "stamp":     { "x": 0.65, "y": 0.75, "w": 0.2, "h": 0.2 }
++        "signature": {
++          "x": 0.6,
++          "y": 0.8,
++          "w": 0.3,
++          "h": 0.15
++        },
++        "stamp": {
++          "x": 0.65,
++          "y": 0.75,
++          "w": 0.2,
++          "h": 0.2
++        }
+       }
+     },
+     "required_fields": [
+-      "permit_number", "issue_date", "property_address",
+-      "title_deed_number", "area", "construction_type"
++      "permit_number",
++      "issue_date",
++      "property_address",
++      "title_deed_number",
++      "area",
++      "construction_type"
+     ]
+   },
+-
+   "extrait_naissance": {
+     "name": "Extrait de Naissance",
+     "name_ar": "نسخة موجزة من رسم الولادة",
+     "template_version": "2.0",
+     "regions": {
+       "header": {
+-        "kingdom":  { "x": 0.4, "y": 0.1, "w": 0.2, "h": 0.05 },
+-        "ministry": { "x": 0.35, "y": 0.15, "w": 0.3, "h": 0.05 }
++        "kingdom": {
++          "x": 0.4,
++          "y": 0.1,
++          "w": 0.2,
++          "h": 0.05
++        },
++        "ministry": {
++          "x": 0.35,
++          "y": 0.15,
++          "w": 0.3,
++          "h": 0.05
++        }
+       },
+       "registry_info": {
+-        "year":   { "x": 0.1, "y": 0.25, "w": 0.2, "h": 0.05 },
+-        "number": { "x": 0.4, "y": 0.25, "w": 0.2, "h": 0.05 }
++        "year": {
++          "x": 0.1,
++          "y": 0.25,
++          "w": 0.2,
++          "h": 0.05,
++          "preproc": {
++            "binarize": "otsu",
++            "dilate": 1,
++            "invert": false,
++            "resize": 1.3
++          }
++        },
++        "number": {
++          "x": 0.4,
++          "y": 0.25,
++          "w": 0.2,
++          "h": 0.05,
++          "preproc": {
++            "binarize": "otsu",
++            "dilate": 1,
++            "invert": false,
++            "resize": 1.3
++          }
++        }
+       },
+       "personal_info": {
+-        "name":        { "x": 0.1, "y": 0.35, "w": 0.8, "h": 0.05 },
+-        "birth_date":  { "x": 0.1, "y": 0.45, "w": 0.4, "h": 0.05 },
+-        "birth_place": { "x": 0.1, "y": 0.55, "w": 0.4, "h": 0.05 },
+-        "parents":     { "x": 0.1, "y": 0.65, "w": 0.8, "h": 0.1 }
++        "name": {
++          "x": 0.1,
++          "y": 0.35,
++          "w": 0.8,
++          "h": 0.05
++        },
++        "birth_date": {
++          "x": 0.1,
++          "y": 0.45,
++          "w": 0.4,
++          "h": 0.05,
++          "preproc": {
++            "binarize": "otsu",
++            "dilate": 1,
++            "invert": false,
++            "resize": 1.2
++          }
++        },
++        "birth_place": {
++          "x": 0.1,
++          "y": 0.55,
++          "w": 0.4,
++          "h": 0.05
++        },
++        "parents": {
++          "x": 0.1,
++          "y": 0.65,
++          "w": 0.8,
++          "h": 0.1
++        }
+       },
+       "certification": {
+-        "signature": { "x": 0.6, "y": 0.8, "w": 0.3, "h": 0.15 },
+-        "stamp":     { "x": 0.65, "y": 0.75, "w": 0.2, "h": 0.2 }
++        "signature": {
++          "x": 0.6,
++          "y": 0.8,
++          "w": 0.3,
++          "h": 0.15
++        },
++        "stamp": {
++          "x": 0.65,
++          "y": 0.75,
++          "w": 0.2,
++          "h": 0.2
++        }
+       }
+     },
+     "required_fields": [
+-      "registry_year", "registry_number", "full_name",
+-      "birth_date", "birth_place", "father_name", "mother_name"
++      "registry_year",
++      "registry_number",
++      "full_name",
++      "birth_date",
++      "birth_place",
++      "father_name",
++      "mother_name"
+     ]
+   }
+-}
++}
+
+--- /dev/null
++++ b/test_confidence_median.py
+@@
+from template_extractor import median_digit_confidence
+
+def test_median_digit_confidence_basic():
+    tokens = [
+        {"text": "A1", "confidence": 0.92},
+        {"text": "B2", "confidence": 0.70},
+        {"text": "C",  "confidence": 0.10},
+        {"text": "D3E", "confidence": 0.50},
+    ]
+    assert abs(median_digit_confidence(tokens) - 0.70) < 1e-6
+
+def test_median_digit_confidence_empty_returns_zero():
+    tokens = [{"text": "ABC", "confidence": 0.9}, {"text": "DEF", "confidence": 0.8}]
+    assert median_digit_confidence(tokens) == 0.0
+
+
+--- /dev/null
++++ b/test_accent_normalization.py
+@@
+from validators import normalize_field
+
+def test_accent_agnostic_declaration():
+    a = normalize_field("déclaration")
+    b = normalize_field("declaration")
+    assert a == b
+
+
+--- /dev/null
++++ b/test_static_health.py
+@@
+import os
+import re
+
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
+def iter_py_files():
+    for dirpath, _, filenames in os.walk(ROOT):
+        for fn in filenames:
+            if not fn.endswith('.py'):
+                continue
+            path = os.path.join(dirpath, fn)
+            yield path
+
+def test_no_lingering_process_calls():
+    bad = []
+    for path in iter_py_files():
+        bn = os.path.basename(path)
+        if bn.startswith('test_'):
+            continue
+        if bn in {'quick_ocr_check.py', 'quick_ocr_check2.py', 'gen_fake_assoc.py'}:
+            continue
+        with open(path, 'r', encoding='utf-8', errors='replace') as f:
+            txt = f.read()
+        # Allow the intentional compatibility shim ONLY in template_extractor.py
+        if bn == 'template_extractor.py':
+            continue
+        if re.search(r'\.process\s*\(', txt):
+            bad.append(path)
+    assert not bad, f"Found lingering .process( calls in: {bad}"
+
+def test_no_print_in_core_code():
+    bad = []
+    for path in iter_py_files():
+        bn = os.path.basename(path)
+        if bn.startswith('test_'):
+            continue
+        if bn in {'quick_ocr_check.py', 'quick_ocr_check2.py', 'gen_fake_assoc.py'}:
+            continue
+        with open(path, 'r', encoding='utf-8', errors='replace') as f:
+            txt = f.read()
+        if 'print(' in txt:
+            bad.append(path)
+    assert not bad, f"Use logging, not print(), in core code: {bad}"
+
+
+--- /dev/null
++++ b/Makefile
+@@
+.PHONY: format lint test fetch-tessdata precommit
+
+format:
+	python -m black .
+	python -m ruff --fix .
+
+lint:
+	python -m ruff .
+
+test:
+	python -m pytest -q
+
+fetch-tessdata:
+	powershell -ExecutionPolicy Bypass -File scripts/fetch_tessdata.ps1
+
+precommit: format lint test
+
+
+--- /dev/null
++++ b/tasks.py
+@@
+from invoke import task
+import platform
+
+@task
+def format(c):
+    c.run("python -m black .")
+    c.run("python -m ruff --fix .")
+
+@task
+def lint(c):
+    c.run("python -m ruff .")
+
+@task
+def test(c):
+    c.run("python -m pytest -q")
+
+@task
+def fetch_tessdata(c):
+    if platform.system() == "Windows":
+        c.run("powershell -ExecutionPolicy Bypass -File scripts/fetch_tessdata.ps1")
+    else:
+        print("Non-Windows: install tesseract + ara/fra via your package manager.")
+
+
+--- a/hybrid_ocr_gui.py
++++ b/hybrid_ocr_gui.py
+@@ -61,7 +61,7 @@
+                 }
+             
+             # Preprocess image
+-            processed = self.preprocessor.process(image)
++            processed = self.preprocessor.process_document(image)
+             
+             # Process with hybrid OCR
+             start_time = time.time()
+
+
+--- a/main_window.py
++++ b/main_window.py
+@@ -45,7 +45,7 @@
+     def _perform_document_analysis(self, document):
+         """Analyze document for text content and layout"""
+         # Preprocess the image
+-        preprocessed = self.preprocessor.process(document.image)
++        preprocessed = self.preprocessor.process_document(document.image)
+         
+         # Detect handwriting regions
+         handwriting_regions = self._perform_handwriting_detection(preprocessed)
