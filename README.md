@@ -1,11 +1,92 @@
 # 🇲🇦 Morocco Prefecture OCR
 
-[![CI](https://github.com/Trunsoest04/OCR-intern/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Trunsoest04/OCR-intern/actions/workflows/ci.yml)
+[![CI](https://github.com/wizardus999-code/OCR-intern/actions/wor## 🌍 Translations
+<details><summary><strong>🇫🇷 Français (cliquez pour développer)</strong></summary>
+
+### Démarrage rapide
+
+Définir TESSDATA_PREFIX vers tessdata
+
+Forcer l'arabe en psm=6
+
+Pas de repli forcé vers le français
+
+### Windows (PowerShell)
+```powershell
+$env:PATH = "C:\Program Files\Tesseract-OCR;$env:PATH"
+$env:TESSDATA_PREFIX = (Resolve-Path .\tessdata).Path
+tesseract --list-langs
+.\.venv\Scripts\python.exe -c "import pytesseract; print(pytesseract.get_languages())"
+```
+
+### Linux/macOS (bash)
+```bash
+export TESSDATA_PREFIX="$(pwd)/tessdata"
+tesseract --list-langs
+python -c "import pytesseract; print(pytesseract.get_languages())"
+```
+
+### Stabilisation
+
+tessdata Windows-safe : on privilégie TESSDATA_PREFIX, sinon --tessdata-dir "<chemin posix>".
+
+Arabe PSM=6 (bloc de texte).
+
+Fallback arabe : si aucune région n'est détectée, on tente l'arabe sur toute la page.
+
+### Dépannage
+
+Si l'arabe ressort en latin : activer LSTM-only dans src/ocr/base.py (commentaire dans le code).
+
+</details>
+
+<details><summary><strong>🇸🇦 العربية (انقر للتوسيع)</strong></summary><div dir="rtl">
+
+### البدء السريع
+
+تعيين TESSDATA_PREFIX إلى مجلد tessdata
+
+إجبار العربية على psm=6
+
+لا يوجد تراجع افتراضي إلى الفرنسية
+
+### ويندوز (PowerShell)
+```powershell
+$env:PATH = "C:\Program Files\Tesseract-OCR;$env:PATH"
+$env:TESSDATA_PREFIX = (Resolve-Path .\tessdata).Path
+tesseract --list-langs
+.\.venv\Scripts\python.exe -c "import pytesseract; print(pytesseract.get_languages())"
+```
+
+### لينكس/ماك (bash)
+```bash
+export TESSDATA_PREFIX="$(pwd)/tessdata"
+tesseract --list-langs
+python -c "import pytesseract; print(pytesseract.get_languages())"
+```
+
+### الاستقرار
+
+مسار tessdata متوافق مع ويندوز: أولوية لـ TESSDATA_PREFIX وإلا --tessdata-dir "<مسار posix>".
+
+العربية PSM=6.
+
+تشغيل العربية على الصفحة كاملة عند عدم اكتشاف مناطق عربية.
+
+### استكشاف الأخطاء
+
+إن ظهرت العربية بحروف لاتينية: فعّل نمط LSTM-only في src/ocr/base.py (مذكور داخل الكود).
+
+</div></details>i.yml/badge.svg?branch=main)](https://github.com/wizardus999-code/OCR-intern/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-informational)
-![License](https://img.shields.io/github/license/Trunsoest04/OCR-intern)
+![License](https://img.shields.io/github/license/wizardus999-code/OCR-intern)
 ![Status](https://img.shields.io/badge/status-Alpha-blue)
 
 End-to-end OCR system optimized for Moroccan administrative documents with bilingual (FR+AR) processing, multi-format export (PDF/Word/Excel/JSON), performance analytics, and a GUI dashboard. Includes automated testing and CI/CD integration.
+
+> 🌍 Translations: **[Français](#-français-cliquez-pour-développer)** • **[العربية](#-العربية-انقر-للتوسيع)**
+
+---
 
 ## ✨ Highlights
 - **Templates**: Residency Certificate, Administrative Attestation, Construction Permit, Birth Extract.
