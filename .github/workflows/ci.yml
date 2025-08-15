@@ -1,47 +1,50 @@
 ﻿name: CI
 
-on:
-  push:
-    branches: [ main, feat/**, fix/** ]
-  pull_request:
-    branches: [ main ]
+on: [push, pull_request]
 
 jobs:
-  test:
+  tests-windows:
     runs-on: windows-latest
-    env:
-      PIP_DISABLE_PIP_VERSION_CHECK: 1
-      PYTHONUNBUFFERED: 1
-      # make OCR use repo tessdata (fetched in next step)
-      TESSDATA_PREFIX: ${{ github.workspace }}\tessdata
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
       - name: Install Tesseract
         run: choco install -y tesseract
-        shell: powershell
-
-      - name: Show Tesseract version
-        run: tesseract --version
-        shell: powershell
-
       - name: Install deps
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-        shell: powershell
-
-      - name: Fetch tessdata (fra/ara)
-        run: pwsh -File scripts/fetch_tessdata.ps1
-        shell: powershell
-
+          python -m pip install -U pip
+          python -m pip install -r requirements.txt
+      - name: Fetch tessdata
+        shell: pwsh
+        run: |
+          ./scripts/fetch_tessdata.ps1
+          $env:TESSDATA_PREFIX = (Resolve-Path .\tessdata).Path
+          echo "TESSDATA_PREFIX=$env:TESSDATA_PREFIX" >> $env:GITHUB_ENV
       - name: Run tests
+        env:
+          TESSDATA_PREFIX: ${{ env.TESSDATA_PREFIX }}
+        run: |
+          python -m pytest -q
+
+  tests-ubuntu:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - name: Install Tesseract
+        run: sudo apt-get update && sudo apt-get install -y tesseract-ocr
+      - name: Install deps
+        run: |
+          python -m pip install -U pip
+          python -m pip install -r requirements.txt
+      - name: Fetch tessdata (ara, fra)
+        run: |
+          mkdir -p tessdata
+          curl -L https://github.com/tesseract-ocr/tessdata_best/raw/main/ara.traineddata -o tessdata/ara.traineddata
+          curl -L https://github.com/tesseract-ocr/tessdata_best/raw/main/fra.traineddata -o tessdata/fra.traineddata
+      - name: Run tests
+        env:
+          TESSDATA_PREFIX: ${{ github.workspace }}/tessdata
         run: python -m pytest -q
-        shell: powershell

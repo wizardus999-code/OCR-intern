@@ -1,5 +1,16 @@
-﻿* text=auto eol=lf
-*.ps1 text eol=crlf
-*.png binary
-*.jpg binary
-*.ttf binary
+﻿*               text=auto
+*.py            text eol=lf
+*.ps1           text eol=crlf
+*.sh            text eol=lf
+*.bat           text eol=crlf
+*.yml           text eol=lf
+*.yaml          text eol=lf
+*.json          text eol=lf
+*.md            text eol=lf
+
+# images & data
+*.png           binary
+*.jpg           binary
+*.jpeg          binary
+*.webp          binary
+tessdata/**     binary
