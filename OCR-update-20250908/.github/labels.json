@@ -1,0 +1,64 @@
+{
+  "labels": [
+    {
+      "name": "area:env",
+      "description": "Environment and configuration related",
+      "color": "0366d6"
+    },
+    {
+      "name": "area:arabic",
+      "description": "Arabic text processing related",
+      "color": "1d76db"
+    },
+    {
+      "name": "area:roi",
+      "description": "Region of Interest extraction",
+      "color": "3485e2"
+    },
+    {
+      "name": "area:ci",
+      "description": "CI/CD pipeline related",
+      "color": "4a94e9"
+    },
+    {
+      "name": "area:release",
+      "description": "Release and packaging related",
+      "color": "61a3f0"
+    },
+    {
+      "name": "type:test",
+      "description": "Testing related tasks",
+      "color": "d93f0b"
+    },
+    {
+      "name": "type:infra",
+      "description": "Infrastructure related tasks",
+      "color": "e34c26"
+    },
+    {
+      "name": "type:task",
+      "description": "General development tasks",
+      "color": "ed5a47"
+    },
+    {
+      "name": "type:process",
+      "description": "Process improvement tasks",
+      "color": "f66a63"
+    },
+    {
+      "name": "priority:high",
+      "description": "High priority items",
+      "color": "b60205"
+    },
+    {
+      "name": "priority:medium",
+      "description": "Medium priority items",
+      "color": "ff9f1c"
+    },
+    {
+      "name": "priority:low",
+      "description": "Low priority items",
+      "color": "ffcd1c"
+    }
+  ]
+}
